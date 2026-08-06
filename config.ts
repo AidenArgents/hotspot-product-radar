@@ -7,7 +7,9 @@ export const CONFIG_FILE = path.join(PROJECT_ROOT, "config", "radar_config.local
 
 export function loadConfig(): RadarConfig {
   if (!fs.existsSync(CONFIG_FILE)) {
-    throw new Error("缺少 config/radar_config.local.json，请先运行 npm run import:n8n");
+    throw new Error(
+      "缺少 config/radar_config.local.json，请先运行 setup.bat，或复制 radar_config.example.json 后填写配置",
+    );
   }
   const config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8")) as RadarConfig;
   return {

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { loadConfig, PROJECT_ROOT } from "./config.ts";
+import { main as initDatabase } from "./f/radar/init_database.ts";
 import { queryEvents } from "./f/radar/query_events.ts";
 import { main as queryRuns } from "./f/radar/query_runs.ts";
 import { main as queryRunDetail } from "./f/radar/query_run_detail.ts";
@@ -18,6 +19,7 @@ type Job = {
 };
 
 const config = loadConfig();
+await initDatabase(config);
 const jobs = new Map<string, Job>();
 const dashboardDist = path.join(PROJECT_ROOT, "f", "radar", "dashboard__raw_app", "dist");
 let activeScan: Promise<unknown> | null = null;
