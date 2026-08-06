@@ -115,8 +115,45 @@ main { width: min(1460px, 92vw); margin: 0 auto; padding: 44px 0 72px; }
 .scan-modal select { width: 100%; height: 43px; padding: 0 12px; border: 1px solid #d4ddd1; border-radius: 9px; color: #31453a; background: #fff; }
 .scan-submit { width: 100%; margin-top: 24px; padding: 12px; }
 
+.settings-page { display: grid; gap: 16px; }
+.settings-heading { display: flex; align-items: flex-end; justify-content: space-between; padding: 8px 2px 4px; }
+.settings-heading h2 { margin: 0; color: #193a29; font-size: 30px; }
+.settings-heading p:not(.eyebrow) { margin: 7px 0 0; color: #748078; }
+.settings-grid { display: grid; gap: 14px; }
+.settings-card { padding: 24px; border: 1px solid #dce3d8; border-radius: 16px; background: rgba(255,255,255,.88); box-shadow: 0 16px 50px #22372a0b; }
+.settings-card-title { display: flex; gap: 13px; align-items: flex-start; margin-bottom: 20px; }
+.settings-card-title > span { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 9px; color: #346349; background: #e5eee1; font-size: 11px; font-weight: 800; }
+.settings-card-title h3 { margin: 0; color: #244433; font-size: 17px; }
+.settings-card-title p { margin: 4px 0 0; color: #839087; font-size: 12px; }
+.setting-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.setting-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.setting-field { display: grid; gap: 7px; margin-top: 14px; color: #59675e; font-size: 12px; font-weight: 700; }
+.setting-row .setting-field { margin-top: 0; }
+.setting-field > span { display: flex; align-items: center; justify-content: space-between; min-height: 18px; }
+.setting-field input, .setting-field select, .setting-field textarea { width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid #d4ddd1; border-radius: 9px; outline: 0; color: #31453a; background: #fff; resize: vertical; }
+.setting-field input, .setting-field select { height: 42px; }
+.setting-field input:focus, .setting-field select:focus, .setting-field textarea:focus { border-color: #77a087; box-shadow: 0 0 0 3px #4a84651a; }
+.setting-field input:disabled, .setting-field textarea:disabled, .setting-field.read-only input { color: #849087; background: #f0f3ee; }
+.toggle-field { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border: 1px solid #dfe6dc; border-radius: 11px; background: #f6f8f4; }
+.toggle-field span { display: grid; gap: 3px; }
+.toggle-field small { color: #89938c; font-weight: 400; }
+.toggle-field input { width: 20px; height: 20px; accent-color: #1f5b43; }
+.configured, .missing { margin-left: 8px; padding: 2px 7px; border-radius: 999px; font-size: 10px; }
+.configured { color: #26704d; background: #dff2e7; }
+.missing { color: #926c2c; background: #fff0ca; }
+.secret-field { position: relative; }
+.clear-secret { width: fit-content; padding: 0; border: 0; color: #87928b; background: transparent; font-size: 10px; text-decoration: underline; }
+.clear-secret.selected { color: #a33e38; font-weight: 700; }
+.success-banner, .warning-banner { padding: 13px 16px; border-radius: 12px; }
+.success-banner { border: 1px solid #a9d8bb; color: #236343; background: #e9f7ee; }
+.warning-banner { border: 1px solid #ead09b; color: #835e20; background: #fff6df; }
+.settings-footnote { margin: 16px 0 0; color: #7d8981; font-size: 12px; line-height: 1.7; }
+.settings-footnote code { padding: 2px 5px; border-radius: 5px; color: #315a44; background: #edf2ea; }
+.settings-loading { padding: 70px; color: #7d8981; text-align: center; }
+
 @media (max-width: 1200px) {
   .filters { grid-template-columns: 1fr repeat(2, 140px); }
   .event-row { grid-template-columns: 58px 1fr 18px; }
   .products-preview { display: none; }
+  .setting-row.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

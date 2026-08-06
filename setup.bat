@@ -11,47 +11,40 @@ echo       Hotspot Product Radar - One-click Setup
 echo ===================================================
 echo.
 
-echo [1/3] Preparing the local runtime and application...
-call "%~dp0install.bat" /quiet
+set "SETUP_SCRIPT=%~dp0scripts\setup.ps1"
+set "DOWNLOADED_SETUP="
+
+if exist "%SETUP_SCRIPT%" goto run_setup
+
+set "SETUP_SCRIPT=%TEMP%\hotspot-product-radar-setup-%RANDOM%-%RANDOM%.ps1"
+set "DOWNLOADED_SETUP=1"
+echo [INFO] Downloading the setup program...
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/AidenArgents/hotspot-product-radar/main/scripts/setup.ps1' -OutFile '%SETUP_SCRIPT%'"
 if errorlevel 1 goto failed
 
-echo.
-echo [2/3] Checking the centralized configuration...
-if not exist "%~dp0config\radar_config.local.json" (
-  if not exist "%~dp0config\radar_config.example.json" goto failed
-  copy /y "%~dp0config\radar_config.example.json" "%~dp0config\radar_config.local.json" >nul
-  echo [ACTION REQUIRED] A local configuration file was created.
-  echo Fill in the API keys and service settings, save it, then run setup.bat again:
-  echo   config\radar_config.local.json
-  if not defined QUIET start "" notepad.exe "%~dp0config\radar_config.local.json"
-  goto needs_config
-)
-echo [OK] config\radar_config.local.json is present.
-
-echo.
-echo [3/3] Starting the radar...
+:run_setup
 if defined QUIET (
-  call "%~dp0start.bat" /quiet /nobrowser
+  powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SETUP_SCRIPT%" -InstallParent "%~dp0." -Quiet
 ) else (
-  call "%~dp0start.bat" /quiet
+  powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SETUP_SCRIPT%" -InstallParent "%~dp0."
 )
-if errorlevel 1 goto failed
+set "SETUP_EXIT=%ERRORLEVEL%"
+
+if defined DOWNLOADED_SETUP del /q "%SETUP_SCRIPT%" >nul 2>nul
+if not "%SETUP_EXIT%"=="0" goto failed
 
 echo.
-echo [OK] Setup completed. The radar is ready.
+echo ===================================================
+echo [OK] Installation and startup completed.
+echo ===================================================
 if defined QUIET exit /b 0
 echo Press any key to close this window...
 pause >nul
 exit /b 0
 
-:needs_config
-if defined QUIET exit /b 2
-echo.
-echo Press any key to close this window...
-pause >nul
-exit /b 2
-
 :failed
+if defined DOWNLOADED_SETUP del /q "%SETUP_SCRIPT%" >nul 2>nul
 echo.
 echo [ERROR] Setup was not completed. Review the message above.
 if defined QUIET exit /b 1

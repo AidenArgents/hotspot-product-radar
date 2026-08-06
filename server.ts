@@ -1,12 +1,14 @@
 import fs from "node:fs";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
-import { loadConfig, PROJECT_ROOT } from "./config.ts";
+import { timingSafeEqual } from "node:crypto";
+import { loadConfig, PROJECT_ROOT, readConfig, writeConfig } from "./config.ts";
 import { main as initDatabase } from "./f/radar/init_database.ts";
 import { queryEvents } from "./f/radar/query_events.ts";
 import { main as queryRuns } from "./f/radar/query_runs.ts";
 import { main as queryRunDetail } from "./f/radar/query_run_detail.ts";
 import { runScan } from "./f/radar/run_scan.ts";
+import { applySettingsUpdate, LIVE_CONFIG_FIELDS, publicSettings } from "./f/radar/settings.ts";
 import type { DataLines, ScanInput, SourceLine, TargetRegion, TimeRange } from "./f/radar/types.ts";
 
 type Job = {
@@ -67,6 +69,25 @@ function queryString(url: URL, key: string) {
   return url.searchParams.get(key) ?? "";
 }
 
+function isLocalRequest(request: IncomingMessage) {
+  const address = request.socket.remoteAddress ?? "";
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+}
+
+function sameSecret(actual: string, supplied: string) {
+  const actualBuffer = Buffer.from(actual, "utf8");
+  const suppliedBuffer = Buffer.from(supplied, "utf8");
+  return actualBuffer.length === suppliedBuffer.length && timingSafeEqual(actualBuffer, suppliedBuffer);
+}
+
+function canSaveSettings(request: IncomingMessage) {
+  const actual = config.admin_password?.trim() ?? "";
+  if (!actual) return isLocalRequest(request);
+  const header = request.headers["x-radar-admin-password"];
+  const supplied = Array.isArray(header) ? header[0] ?? "" : header ?? "";
+  return sameSecret(actual, supplied);
+}
+
 async function api(request: IncomingMessage, response: ServerResponse, url: URL) {
   if (request.method === "GET" && url.pathname === "/api/health") {
     return json(response, 200, {
@@ -76,6 +97,41 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
       schedule: config.schedule_enabled
         ? `${String(config.schedule_hour).padStart(2, "0")}:${String(config.schedule_minute).padStart(2, "0")}`
         : "disabled",
+    });
+  }
+  if (request.method === "GET" && url.pathname === "/api/settings") {
+    return json(response, 200, publicSettings(readConfig(), { localRequest: isLocalRequest(request) }));
+  }
+  if (request.method === "PUT" && url.pathname === "/api/settings") {
+    if (!canSaveSettings(request)) {
+      return json(response, 403, {
+        error: config.admin_password
+          ? "管理员密码不正确"
+          : "尚未设置管理员密码，只能在服务器本机修改设置",
+      });
+    }
+    if (activeScan) return json(response, 409, { error: "扫描正在运行，完成后才能修改系统设置" });
+
+    const input = await body(request);
+    let update: ReturnType<typeof applySettingsUpdate>;
+    try {
+      update = applySettingsUpdate(readConfig(), input);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return json(response, 400, { error: message });
+    }
+
+    writeConfig(update.next);
+    const loaded = loadConfig();
+    Object.assign(
+      config,
+      Object.fromEntries(LIVE_CONFIG_FIELDS.map((field) => [field, loaded[field]])),
+    );
+    lastScheduledDate = "";
+    return json(response, 200, {
+      ...publicSettings(readConfig(), { localRequest: isLocalRequest(request) }),
+      changed_fields: update.changed_fields,
+      restart_required: update.restart_required,
     });
   }
   if (request.method === "GET" && url.pathname === "/api/events") {
@@ -168,7 +224,11 @@ function scheduledTick() {
 server.listen(config.server_port, config.server_host, () => {
   console.log(`热点选品雷达已启动：${config.dashboard_url}`);
   console.log(`本机访问：http://localhost:${config.server_port}`);
-  console.log(`每日定时：${String(config.schedule_hour).padStart(2, "0")}:${String(config.schedule_minute).padStart(2, "0")}`);
+  console.log(
+    `每日定时：${config.schedule_enabled
+      ? `${String(config.schedule_hour).padStart(2, "0")}:${String(config.schedule_minute).padStart(2, "0")}`
+      : "已关闭"}`,
+  );
 });
 setInterval(scheduledTick, 30_000).unref();
 scheduledTick();

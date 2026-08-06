@@ -36,6 +36,7 @@ function privateIpv4() {
 }
 
 const config = {
+  admin_password: "",
   gemini_api_key: imported.gemini_api_key,
   tavily_api_key: imported.tavily_api_key,
   spreadsheet_id: imported.spreadsheet_id,

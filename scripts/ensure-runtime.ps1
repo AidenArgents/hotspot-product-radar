@@ -1,6 +1,8 @@
 param(
+  [switch]$EnsureGit,
   [switch]$EnsureNode,
-  [string]$RuntimeRoot
+  [string]$RuntimeRoot,
+  [switch]$ForcePortable
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,6 +42,9 @@ function Test-NodeExecutable {
 function Assert-Sha256 {
   param([string]$Path, [string]$ExpectedHash)
 
+  if ([string]::IsNullOrWhiteSpace($ExpectedHash)) {
+    throw "A SHA-256 checksum was not supplied for $Path."
+  }
   $actualHash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
   if ($actualHash -ine $ExpectedHash) {
     throw "SHA-256 verification failed for the downloaded Node.js package."
@@ -104,12 +109,77 @@ function Install-PortableNode {
   Write-Host "[OK] Portable Node.js $version is ready in .runtime."
 }
 
+function Install-PortableGit {
+  $architecture = Get-WindowsArchitecture
+  $assetSuffix = if ($architecture -eq "arm64") { "arm64" } else { "64-bit" }
+  $headers = @{ "User-Agent" = "Hotspot-Product-Radar-Setup" }
+  Write-Host "[INFO] Finding the current Git for Windows release..."
+  $release = Invoke-RestMethod `
+    -Uri "https://api.github.com/repos/git-for-windows/git/releases/latest" `
+    -Headers $headers `
+    -UseBasicParsing
+  $asset = $release.assets |
+    Where-Object {
+      $_.name -match "^MinGit-.*-$assetSuffix\.zip$" -and
+      $_.name -notmatch "busybox"
+    } |
+    Select-Object -First 1
+  if (-not $asset) {
+    throw "No compatible MinGit Windows package was found."
+  }
+  if ($asset.digest -match "^sha256:(.+)$") {
+    $expectedHash = $Matches[1]
+  }
+  else {
+    throw "Git for Windows did not publish a SHA-256 checksum."
+  }
+
+  $downloadDirectory = Join-Path $RuntimeRoot "downloads"
+  $archivePath = Join-Path $downloadDirectory $asset.name
+  $stagingDirectory = Join-Path $RuntimeRoot "git-stage-$PID"
+  $gitDirectory = Join-Path $RuntimeRoot "git"
+
+  New-Item -ItemType Directory -Path $downloadDirectory -Force | Out-Null
+  Write-Host "[INFO] Downloading portable Git $($release.tag_name) for this project only..."
+  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archivePath -UseBasicParsing
+  Assert-Sha256 -Path $archivePath -ExpectedHash $expectedHash
+
+  if (Test-Path -LiteralPath $stagingDirectory) {
+    Remove-Item -LiteralPath $stagingDirectory -Recurse -Force
+  }
+  New-Item -ItemType Directory -Path $stagingDirectory | Out-Null
+  Expand-Archive -LiteralPath $archivePath -DestinationPath $stagingDirectory -Force
+  if (-not (Test-Path -LiteralPath (Join-Path $stagingDirectory "cmd\git.exe") -PathType Leaf)) {
+    throw "The MinGit archive did not contain cmd\git.exe."
+  }
+  if (Test-Path -LiteralPath $gitDirectory) {
+    Remove-Item -LiteralPath $gitDirectory -Recurse -Force
+  }
+  Move-Item -LiteralPath $stagingDirectory -Destination $gitDirectory
+  Remove-Item -LiteralPath $archivePath -Force
+  Write-Host "[OK] Portable Git $($release.tag_name) is ready in .runtime."
+}
+
 New-Item -ItemType Directory -Path $RuntimeRoot -Force | Out-Null
+
+if ($EnsureGit) {
+  $localGit = Join-Path $RuntimeRoot "git\cmd\git.exe"
+  $systemGit = Get-Command git.exe -ErrorAction SilentlyContinue
+  if ((-not $ForcePortable) -and $systemGit) {
+    Write-Host "[OK] System Git is ready: $(& $systemGit.Source --version)"
+  }
+  elseif (Test-Path -LiteralPath $localGit -PathType Leaf) {
+    Write-Host "[OK] Project-local Git is ready: $(& $localGit --version)"
+  }
+  else {
+    Install-PortableGit
+  }
+}
 
 if ($EnsureNode) {
   $localNode = Join-Path $RuntimeRoot "node\node.exe"
   $systemNode = Get-Command node.exe -ErrorAction SilentlyContinue
-  if ($systemNode -and (Test-NodeExecutable $systemNode.Source)) {
+  if ((-not $ForcePortable) -and $systemNode -and (Test-NodeExecutable $systemNode.Source)) {
     Write-Host "[OK] System Node.js is ready: $(& $systemNode.Source --version)"
   }
   elseif (Test-NodeExecutable $localNode) {

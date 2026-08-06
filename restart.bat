@@ -19,6 +19,9 @@ echo       Hotspot Product Radar - Restart
 echo ===================================================
 echo.
 
+if exist "%PROJECT_ROOT%.runtime\node\node.exe" set "PATH=%PROJECT_ROOT%.runtime\node;%PATH%"
+if exist "%PROJECT_ROOT%.runtime\git\cmd\git.exe" set "PATH=%PROJECT_ROOT%.runtime\git\cmd;%PATH%"
+
 call "%PROJECT_ROOT%stop.bat" /quiet
 if errorlevel 1 goto failed
 

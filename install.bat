@@ -12,12 +12,16 @@ echo ===================================================
 echo.
 
 if exist "%~dp0.runtime\node\node.exe" set "PATH=%~dp0.runtime\node;%PATH%"
+if exist "%~dp0.runtime\git\cmd\git.exe" set "PATH=%~dp0.runtime\git\cmd;%PATH%"
 
-echo [1/4] Checking Node.js...
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\ensure-runtime.ps1" -EnsureNode
+echo [1/4] Checking Git and Node.js...
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\ensure-runtime.ps1" -EnsureGit -EnsureNode
 if errorlevel 1 goto failed
 
 if exist "%~dp0.runtime\node\node.exe" set "PATH=%~dp0.runtime\node;%PATH%"
+if exist "%~dp0.runtime\git\cmd\git.exe" set "PATH=%~dp0.runtime\git\cmd;%PATH%"
+where git.exe >nul 2>nul
+if errorlevel 1 goto failed
 where node.exe >nul 2>nul
 if errorlevel 1 goto failed
 where npm.cmd >nul 2>nul

@@ -15,9 +15,19 @@ if (Test-Path -LiteralPath (Join-Path $portableNodeDirectory "node.exe")) {
 
 $action = if ($Restart) { "restart" } else { "start" }
 & $controlScript $action
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not $?) { exit 1 }
 
 if (-not $NoBrowser) {
   $config = Get-Content -LiteralPath $configFile -Raw -Encoding utf8 | ConvertFrom-Json
-  Start-Process "http://localhost:$([int]$config.server_port)"
+  $dashboardUrl = "http://localhost:$([int]$config.server_port)"
+  $browserLauncher = Start-Process `
+    -FilePath $env:ComSpec `
+    -ArgumentList @("/d", "/c", "start", '""', "`"$dashboardUrl`"") `
+    -WindowStyle Hidden `
+    -Wait `
+    -PassThru
+  if ($browserLauncher.ExitCode -ne 0) {
+    throw "Could not open the dashboard in the default browser: $dashboardUrl"
+  }
+  Write-Host "[OK] Browser opened at $dashboardUrl."
 }

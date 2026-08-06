@@ -19,7 +19,7 @@
 
 ## 启动和访问
 
-- 第一次使用：双击 `setup.bat`。
+- 第一次使用：双击 `setup.bat`；它会准备运行环境、创建本地配置、启动服务并打开看板。首次生成配置时还会打开记事本，填写密钥后运行 `restart.bat` 即可生效。
 - 平时启动：双击 `start.bat`。
 - 本机访问：`http://localhost:3210`
 - 当前局域网访问：`http://192.168.1.22:3210`
@@ -44,6 +44,7 @@ New-NetFirewallRule -DisplayName "Hotspot Product Radar" -Direction Inbound -Pro
 当前电脑上的这个文件已经从原 n8n 文件导入真实值，并被 `.gitignore` 排除，不会进入版本库。公开仓库提供 `config/radar_config.example.json`；新用户运行 `setup.bat` 时会自动复制成自己的本地配置，并提示填写。主要分组：
 
 - AI/搜索：`gemini_api_key`、`tavily_api_key`、`gemini_model`
+- 管理权限：`admin_password`，远程团队成员修改系统设置时需要验证；未设置时只允许服务器本机保存
 - Google Sheets：`spreadsheet_id`、服务账号邮箱、私钥、工作表名称
 - 钉钉：两个机器人的 token 和 secret
 - 本地服务：`database_file`、`server_host`、`server_port`、`dashboard_url`
@@ -59,6 +60,14 @@ New-NetFirewallRule -DisplayName "Hotspot Product Radar" -Direction Inbound -Pro
 
 公开仓库中的配置样本默认关闭定时任务、留空代理和所有密钥。新用户填完配置后，如需每天自动采集，再把 `schedule_enabled` 改为 `true`。
 
+## 页面系统设置
+
+看板顶部的“系统设置”可以直接修改每日运行开关和时间、默认扫描区域/范围/线路、Gemini 模型、并发、超时、Google Sheets、两组钉钉机器人、代理及 API Key。日常运行设置保存后立即生效，不需要重启；`server_host` 和 `server_port` 保存后需要运行 `restart.bat`。
+
+密钥原值不会通过接口返回浏览器，页面只显示“已配置/未配置”；留空会保留原值，也可以明确选择清除。首次应在服务器本机设置至少 8 位的管理员密码，之后远程团队成员必须输入该密码才能保存。公开部署时还必须使用 HTTPS，避免管理员密码或新密钥在网络中明文传输。
+
+国家清单、逐站媒体源、体育搜索、RSS 来源、提示词以及三条独立消息边界仍属于流程设计，继续由版本化代码管理，不会被普通页面设置意外改动。
+
 ## 数据与备份
 
 - 业务数据库：`data/radar.sqlite`
@@ -72,16 +81,18 @@ New-NetFirewallRule -DisplayName "Hotspot Product Radar" -Direction Inbound -Pro
 
 | 文件 | 用途 |
 |---|---|
-| `setup.bat` | 首次准备环境、安装依赖、构建页面并启动 |
-| `install.bat` | 安装或修复 Node.js 运行环境、依赖和前端构建，不修改配置与数据 |
+| `setup.bat` | 一键安装；支持从 GitHub 克隆或把 ZIP 下载目录转换成可更新的 Git 安装 |
+| `install.bat` | 安装或修复 Git、Node.js、依赖和前端构建，不修改配置与数据 |
 | `start.bat` | 后台启动并打开页面；重复运行不会启动第二份 |
 | `restart.bat` | 安全关闭本项目进程后重新启动 |
 | `stop.bat` | 只关闭经过路径和 PID 校验的本项目进程 |
 | `status.bat` | 查看服务、端口及 PID 状态 |
+| `update.bat` | 保留本地配置和数据库，安全拉取 GitHub 最新版本、安装并重启 |
+| `发布更新.bat` | 维护者使用；检查类型、测试、构建和密钥后确认提交并推送 GitHub |
 | `install-startup.bat` | 安装当前用户的开机登录自启动快捷方式 |
 | `uninstall-startup.bat` | 移除开机登录自启动，不关闭当前服务 |
 
-如果电脑没有合适版本的 Node.js，`setup.bat` / `install.bat` 会把 Node.js LTS 便携版下载到项目自己的 `.runtime` 目录，不安装 Docker，也不改 Windows 的全局 Node.js。
+如果电脑没有 Git 或合适版本的 Node.js，`setup.bat` / `install.bat` 会把便携版下载到项目自己的 `.runtime` 目录，不安装 Docker，也不改 Windows 的全局 Git、Node.js。
 
 ## 命令行方式
 

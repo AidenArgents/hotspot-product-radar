@@ -12,6 +12,7 @@ export type DataLines =
 export type SourceLine = "假日" | "媒体" | "网页";
 
 export interface RadarConfig {
+  admin_password?: string;
   gemini_api_key: string;
   tavily_api_key: string;
   spreadsheet_id: string;

@@ -1,10 +1,26 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
-const ignored = new Set([
-  path.normalize("config/radar_config.local.json"),
-  path.normalize("scripts/check-no-committed-secrets.mjs"),
+const ignored = new Set([path.normalize("scripts/check-no-committed-secrets.mjs")]);
+const textExtensions = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".html",
+  ".css",
+  ".md",
+  ".txt",
+  ".bat",
+  ".cmd",
+  ".ps1",
+  ".yml",
+  ".yaml",
 ]);
 const secretPatterns = [
   /AIza[0-9A-Za-z_-]{20,}/,
@@ -13,27 +29,27 @@ const secretPatterns = [
   /SEC[0-9a-f]{40,}/i,
 ];
 
-function walk(dir) {
-  const files = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (["node_modules", ".git", "dist"].includes(entry.name)) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...walk(full));
-    else files.push(full);
-  }
-  return files;
-}
-
+const output = execFileSync(
+  "git",
+  ["-c", "core.quotePath=false", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+  { cwd: root, encoding: "utf8" },
+);
+const files = output.split("\0").filter(Boolean);
 const leaks = [];
-for (const file of walk(root)) {
-  const relative = path.normalize(path.relative(root, file));
+
+for (const relativeName of files) {
+  const relative = path.normalize(relativeName);
   if (ignored.has(relative)) continue;
-  const text = fs.readFileSync(file, "utf8");
-  if (secretPatterns.some((pattern) => pattern.test(text))) leaks.push(relative);
+  if (!textExtensions.has(path.extname(relative).toLowerCase())) continue;
+
+  const file = path.join(root, relative);
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
+  const content = fs.readFileSync(file, "utf8");
+  if (secretPatterns.some((pattern) => pattern.test(content))) leaks.push(relativeName);
 }
 
 if (leaks.length) {
   console.error(`发现疑似明文密钥：${leaks.join(", ")}`);
   process.exit(1);
 }
-console.log("通过：版本化文件中未发现原流程明文密钥。");
+console.log("通过：待发布文件中未发现明文密钥。");

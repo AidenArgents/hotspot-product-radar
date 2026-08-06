@@ -20,6 +20,7 @@ echo ===================================================
 echo.
 
 if exist "%PROJECT_ROOT%.runtime\node\node.exe" set "PATH=%PROJECT_ROOT%.runtime\node;%PATH%"
+if exist "%PROJECT_ROOT%.runtime\git\cmd\git.exe" set "PATH=%PROJECT_ROOT%.runtime\git\cmd;%PATH%"
 
 set "NEED_INSTALL="
 where node.exe >nul 2>nul

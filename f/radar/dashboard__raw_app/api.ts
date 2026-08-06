@@ -20,6 +20,20 @@ async function call(runnable: string, args: Arguments) {
   if (runnable === "query_run_detail") {
     return responseJson(await fetch(`/api/runs/${encodeURIComponent(String(args.run_id ?? ""))}`));
   }
+  if (runnable === "get_settings") {
+    return responseJson(await fetch("/api/settings"));
+  }
+  if (runnable === "save_settings") {
+    const { auth_password, ...payload } = args;
+    return responseJson(await fetch("/api/settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Radar-Admin-Password": String(auth_password ?? ""),
+      },
+      body: JSON.stringify(payload),
+    }));
+  }
   throw new Error(`未知接口：${runnable}`);
 }
 

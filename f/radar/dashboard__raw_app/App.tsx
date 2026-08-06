@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { backend, backendAsync, waitJob } from "./api";
+import SettingsPanel from "./SettingsPanel";
 
 type Product = {
   name?: string;
@@ -76,7 +77,7 @@ export default function App() {
   const [runDetail, setRunDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"events" | "runs">("events");
+  const [tab, setTab] = useState<"events" | "runs" | "settings">("events");
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanForm, setScanForm] = useState({
@@ -139,6 +140,20 @@ export default function App() {
     }
   }
 
+  async function openScan() {
+    try {
+      const settings = await backend.get_settings({});
+      setScanForm({
+        target_region: String(settings.values.default_target_region),
+        time_range: String(settings.values.default_time_range),
+        data_lines: String(settings.values.default_manual_data_lines),
+      });
+    } catch {
+      // Existing defaults remain usable when settings cannot be loaded.
+    }
+    setScanOpen(true);
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -152,10 +167,11 @@ export default function App() {
         <nav>
           <button className={tab === "events" ? "nav-active" : ""} onClick={() => setTab("events")}>机会库</button>
           <button className={tab === "runs" ? "nav-active" : ""} onClick={() => setTab("runs")}>运行记录</button>
+          <button className={tab === "settings" ? "nav-active" : ""} onClick={() => setTab("settings")}>系统设置</button>
         </nav>
         <div className="header-actions">
           <button className="ghost" onClick={load}>刷新</button>
-          <button className="primary" onClick={() => setScanOpen(true)}>＋ 立即扫描</button>
+          <button className="primary" onClick={openScan}>＋ 立即扫描</button>
         </div>
       </header>
 
@@ -224,7 +240,7 @@ export default function App() {
               </div>
             </section>
           </>
-        ) : (
+        ) : tab === "runs" ? (
           <section className="runs-layout">
             <div className="panel run-list-panel">
               <div className="panel-title"><div>扫描运行</div><small>最近 {runs.length} 次</small></div>
@@ -258,6 +274,8 @@ export default function App() {
               )}
             </div>
           </section>
+        ) : (
+          <SettingsPanel />
         )}
       </main>
 
