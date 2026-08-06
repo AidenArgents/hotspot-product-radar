@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ChangeEvent } from "react";
 import { backend } from "./api";
+import sourceCatalog from "../../../config/source_catalog.json";
 
 type SettingsValues = {
   schedule_enabled: boolean;
@@ -224,6 +225,51 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
           </div>
           <label className="setting-field read-only"><span>数据库文件（页面只读）</span><input value={values.database_file} readOnly /></label>
           <p className="settings-footnote">修改监听地址或端口后，当前服务会继续使用旧地址，运行 <code>restart.bat</code> 后切换。数据库位置为防止误切换历史数据，只允许在本地配置文件中修改。</p>
+        </article>
+      </div>
+
+      <div className="settings-grid" style={{ marginTop: 14 }}>
+        <article className="settings-card">
+          <div className="settings-card-title"><span>05</span><div><h3>数据源清单 (只读)</h3><p>系统目前抓取的所有媒体网站及 RSS 资讯源配置。</p></div></div>
+          <div className="source-list-preview">
+            {Object.entries(sourceCatalog.countries).map(([countryName, countryInfo]: [string, any]) => (
+              <div key={countryName} className="source-preview-row">
+                <h4>{countryName} <span>{countryInfo.region}</span></h4>
+                <div className="source-preview-links">
+                  {countryInfo.media.map((m: string[]) => (
+                    <span key={m[0]}>{m[0]}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="source-preview-row">
+              <h4>体育搜索聚合</h4>
+              <div className="source-preview-links">
+                {sourceCatalog.sports_searches.map((s: string[]) => (
+                  <span key={s[0]}>{s[0]}</span>
+                ))}
+              </div>
+            </div>
+            <div className="source-preview-row">
+              <h4>全局 RSS 资讯源</h4>
+              <div className="source-preview-links">
+                {sourceCatalog.rss_feeds.map((feed: any) => (
+                  <span key={feed.name}>{feed.name} ({new URL(feed.url).hostname})</span>
+                ))}
+                {sourceCatalog.rss_feeds.length === 0 && <span style={{ opacity: 0.6 }}>暂无 RSS 源配置</span>}
+              </div>
+            </div>
+            {sourceCatalog.google_news_queries.length > 0 && (
+              <div className="source-preview-row">
+                <h4>Google 新闻专项</h4>
+                <div className="source-preview-links">
+                  {sourceCatalog.google_news_queries.map((q: any) => (
+                    <span key={q.name}>{q.name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </article>
       </div>
     </section>

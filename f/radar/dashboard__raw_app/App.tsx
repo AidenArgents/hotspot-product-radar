@@ -348,11 +348,11 @@ export default function App() {
             <div className="drawer-score"><span>电商机会分</span><strong>{selected.ecommerce_score}</strong></div>
             <span className={`line line-${selected.source_line}`}>{selected.source_line}线路</span>
             <h2>{selected.event_name}</h2>
-            <div className="meta large"><span>◉ {selected.country}</span><span>◷ {selected.date}</span><span>{selected.stage}</span></div>
-            <div className="insight"><span>为什么值得卖</span><p>{selected.why_sellable || "暂无"}</p></div>
-            <h3>推荐选品</h3>
-            <div className="product-cards">{(selected.products ?? []).map((product, index) => <article key={`${product.name}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><div><b>{product.name}</b><small>{product.category} · {product.price_range}</small><p>{[...(product.keywords_en ?? []), ...(product.keywords_local ?? [])].slice(0, 5).map((keyword) => `#${keyword}`).join("  ")}</p></div></article>)}</div>
-            <div className="listing-time"><span>最佳上架时间</span><b>{selected.best_listing_time || "待分析"}</b></div>
+            <div className="meta large"><span>📍 {selected.country}</span><span className="divider">|</span><span>📅 {selected.date}</span><span className="divider">|</span><span>{selected.stage}</span></div>
+            <div className="insight"><span>💡 为什么值得卖</span><p>{selected.why_sellable || "暂无"}</p></div>
+            <h3 className="section-head">🛒 推荐选品</h3>
+            <div className="product-cards">{(selected.products ?? []).map((product, index) => <article key={`${product.name}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><div className="product-info-rich"><b>{product.name} <em>({product.category})</em></b><div className="product-price"><span>💰</span> {product.price_range}</div><div className="product-keys"><span>🔑</span> {[...(product.keywords_en ?? []), ...(product.keywords_local ?? [])].filter(Boolean).join(", ")}</div></div></article>)}</div>
+            <div className="listing-time"><span>⏰ 最佳上架时间</span><b>{selected.best_listing_time || "待分析"}</b></div>
           </aside>
         </div>
       )}
