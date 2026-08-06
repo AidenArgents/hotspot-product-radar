@@ -1,0 +1,438 @@
+{
+  "regions": {
+    "东南亚": [
+      "越南",
+      "泰国",
+      "印尼",
+      "菲律宾",
+      "马来西亚",
+      "新加坡"
+    ],
+    "拉美": [
+      "巴西",
+      "墨西哥"
+    ]
+  },
+  "countries": {
+    "越南": {
+      "code": "VN",
+      "currency": "VND",
+      "region": "东南亚",
+      "media": [
+        [
+          "vnexpress.net",
+          "site:vnexpress.net 2026 ${config.time_range} tin tuc moi nhat thoi su le hoi su kien noi bat"
+        ],
+        [
+          "tuoitre.vn",
+          "site:tuoitre.vn 2026 ${config.time_range} tin nong thoi su le hoi su kien hot trend"
+        ],
+        [
+          "thanhnien.vn",
+          "site:thanhnien.vn 2026 ${config.time_range} tin tuc thoi su le hoi su kien viral"
+        ],
+        [
+          "vietnamnet.vn",
+          "site:vietnamnet.vn 2026 ${config.time_range} tin moi le hoi su kien noi bat"
+        ]
+      ]
+    },
+    "泰国": {
+      "code": "TH",
+      "currency": "THB",
+      "region": "东南亚",
+      "media": [
+        [
+          "bangkokpost.com",
+          "site:bangkokpost.com Thailand 2026 ${config.time_range} news breaking disaster royal celebrity Songkran festival event"
+        ],
+        [
+          "nationthailand.com",
+          "site:nationthailand.com Thailand 2026 ${config.time_range} news breaking disaster royal celebrity festival event trending"
+        ],
+        [
+          "thaipbsworld.com",
+          "site:thaipbsworld.com Thailand 2026 ${config.time_range} news breaking disaster royal celebrity festival event"
+        ]
+      ]
+    },
+    "印尼": {
+      "code": "ID",
+      "currency": "IDR",
+      "region": "东南亚",
+      "media": [
+        [
+          "detik.com",
+          "site:detik.com Indonesia 2026 ${config.time_range} berita terkini bencana gempa gunung artis viral Lebaran festival"
+        ],
+        [
+          "kompas.com",
+          "site:kompas.com Indonesia 2026 ${config.time_range} berita terkini bencana gempa artis viral festival event"
+        ],
+        [
+          "thejakartapost.com",
+          "site:thejakartapost.com Indonesia 2026 ${config.time_range} news breaking disaster earthquake volcano celebrity festival event"
+        ],
+        [
+          "tempo.co",
+          "site:tempo.co Indonesia 2026 ${config.time_range} berita terkini bencana gempa artis viral festival event trending"
+        ]
+      ]
+    },
+    "菲律宾": {
+      "code": "PH",
+      "currency": "PHP",
+      "region": "东南亚",
+      "media": [
+        [
+          "rappler.com",
+          "site:rappler.com Philippines 2026 ${config.time_range} news breaking disaster typhoon celebrity trending Sinulog festival event"
+        ],
+        [
+          "gmanetwork.com",
+          "site:gmanetwork.com Philippines 2026 ${config.time_range} news breaking disaster typhoon celebrity trending festival fiesta event"
+        ],
+        [
+          "abs-cbn.com",
+          "site:abs-cbn.com Philippines 2026 ${config.time_range} news breaking disaster typhoon celebrity trending festival event"
+        ],
+        [
+          "philstar.com",
+          "site:philstar.com Philippines 2026 ${config.time_range} news breaking disaster typhoon celebrity trending festival event"
+        ]
+      ]
+    },
+    "马来西亚": {
+      "code": "MY",
+      "currency": "MYR",
+      "region": "东南亚",
+      "media": [
+        [
+          "thestar.com.my",
+          "site:thestar.com.my Malaysia 2026 ${config.time_range} news breaking disaster flood royal celebrity trending Hari Raya festival event"
+        ],
+        [
+          "nst.com.my",
+          "site:nst.com.my Malaysia 2026 ${config.time_range} news breaking disaster flood royal celebrity trending festival event"
+        ],
+        [
+          "malaymail.com",
+          "site:malaymail.com Malaysia 2026 ${config.time_range} news breaking disaster flood royal celebrity trending festival event"
+        ],
+        [
+          "freemalaysiatoday.com",
+          "site:freemalaysiatoday.com Malaysia 2026 ${config.time_range} news breaking disaster flood royal celebrity trending festival event"
+        ]
+      ]
+    },
+    "新加坡": {
+      "code": "SG",
+      "currency": "SGD",
+      "region": "东南亚",
+      "media": [
+        [
+          "straitstimes.com",
+          "site:straitstimes.com Singapore 2026 ${config.time_range} news breaking celebrity trending Chinese New Year National Day festival event"
+        ],
+        [
+          "channelnewsasia.com",
+          "site:channelnewsasia.com Singapore 2026 ${config.time_range} news breaking celebrity trending festival event F1 Grand Prix"
+        ],
+        [
+          "todayonline.com",
+          "site:todayonline.com Singapore 2026 ${config.time_range} news breaking celebrity trending festival event"
+        ]
+      ]
+    },
+    "巴西": {
+      "code": "BR",
+      "currency": "BRL",
+      "region": "拉美",
+      "media": [
+        [
+          "g1.globo.com",
+          "site:g1.globo.com Brasil 2026 ${config.time_range} noticias ultimas desastre enchente celebridade viral Carnaval festival evento"
+        ],
+        [
+          "folha.uol.com.br",
+          "site:folha.uol.com.br Brasil 2026 ${config.time_range} noticias ultimas desastre celebridade viral festival evento"
+        ],
+        [
+          "estadao.com.br",
+          "site:estadao.com.br Brasil 2026 ${config.time_range} noticias ultimas desastre celebridade viral festival evento"
+        ],
+        [
+          "uol.com.br",
+          "site:uol.com.br Brasil 2026 ${config.time_range} noticias ultimas desastre celebridade viral festival evento"
+        ]
+      ]
+    },
+    "墨西哥": {
+      "code": "MX",
+      "currency": "MXN",
+      "region": "拉美",
+      "media": [
+        [
+          "eluniversal.com.mx",
+          "site:eluniversal.com.mx Mexico 2026 ${config.time_range} noticias ultimas desastre terremoto celebridad viral Dia de Muertos festival evento"
+        ],
+        [
+          "milenio.com",
+          "site:milenio.com Mexico 2026 ${config.time_range} noticias ultimas desastre terremoto celebridad viral festival evento"
+        ],
+        [
+          "reforma.com",
+          "site:reforma.com Mexico 2026 ${config.time_range} noticias ultimas desastre terremoto celebridad viral festival evento"
+        ],
+        [
+          "jornada.com.mx",
+          "site:jornada.com.mx Mexico 2026 ${config.time_range} noticias ultimas desastre terremoto celebridad viral festival evento"
+        ]
+      ]
+    },
+    "俄罗斯": {
+      "code": "RU",
+      "currency": "RUB",
+      "region": "俄罗斯",
+      "media": [
+        [
+          "rt.com",
+          "site:rt.com Russia 2026 ${config.time_range} news breaking celebrity trending Victory Day New Year festival event"
+        ],
+        [
+          "tass.com",
+          "site:tass.com Russia 2026 ${config.time_range} news breaking celebrity trending festival event"
+        ],
+        [
+          "themoscowtimes.com",
+          "site:themoscowtimes.com Russia 2026 ${config.time_range} news breaking celebrity trending festival event"
+        ],
+        [
+          "rbth.com",
+          "site:rbth.com Russia 2026 ${config.time_range} news breaking celebrity trending festival event Maslenitsa"
+        ]
+      ]
+    },
+    "美国": {
+      "code": "US",
+      "currency": "USD",
+      "region": "美国",
+      "media": [
+        [
+          "cnn.com",
+          "site:cnn.com USA America 2026 ${config.time_range} news breaking disaster hurricane wildfire celebrity trending Super Bowl Thanksgiving Black Friday"
+        ],
+        [
+          "nbcnews.com",
+          "site:nbcnews.com USA America 2026 ${config.time_range} news breaking disaster celebrity trending holiday event"
+        ],
+        [
+          "abcnews.go.com",
+          "site:abcnews.go.com USA America 2026 ${config.time_range} news breaking disaster celebrity trending holiday event"
+        ],
+        [
+          "cbsnews.com",
+          "site:cbsnews.com USA America 2026 ${config.time_range} news breaking disaster celebrity trending holiday event"
+        ]
+      ]
+    },
+    "英国": {
+      "code": "GB",
+      "currency": "GBP",
+      "region": "英国",
+      "media": [
+        [
+          "bbc.com",
+          "site:bbc.com UK Britain 2026 ${config.time_range} news breaking disaster royal celebrity trending Premier League Wimbledon Christmas Boxing Day"
+        ],
+        [
+          "theguardian.com",
+          "site:theguardian.com UK Britain 2026 ${config.time_range} news breaking disaster royal celebrity trending event festival"
+        ],
+        [
+          "telegraph.co.uk",
+          "site:telegraph.co.uk UK Britain 2026 ${config.time_range} news breaking disaster royal celebrity trending event festival"
+        ],
+        [
+          "sky.com",
+          "site:sky.com UK Britain 2026 ${config.time_range} news breaking disaster royal celebrity trending event festival"
+        ]
+      ]
+    },
+    "德国": {
+      "code": "DE",
+      "currency": "EUR",
+      "region": "欧洲",
+      "media": [
+        [
+          "dw.com",
+          "site:dw.com Germany Deutschland 2026 ${config.time_range} news breaking disaster flood celebrity trending Oktoberfest Karneval Weihnachtsmarkt"
+        ],
+        [
+          "spiegel.de",
+          "site:spiegel.de Germany Deutschland 2026 ${config.time_range} Nachrichten Katastrophe Promi Trend Festival Event"
+        ],
+        [
+          "zeit.de",
+          "site:zeit.de Germany Deutschland 2026 ${config.time_range} Nachrichten Katastrophe Promi Trend Festival Event"
+        ],
+        [
+          "faz.net",
+          "site:faz.net Germany Deutschland 2026 ${config.time_range} Nachrichten Katastrophe Promi Trend Festival Event"
+        ]
+      ]
+    },
+    "法国": {
+      "code": "FR",
+      "currency": "EUR",
+      "region": "欧洲",
+      "media": [
+        [
+          "france24.com",
+          "site:france24.com France 2026 ${config.time_range} news breaking disaster celebrity trending Bastille Tour de France Roland Garros"
+        ],
+        [
+          "lemonde.fr",
+          "site:lemonde.fr France 2026 ${config.time_range} actualites catastrophe celebrite tendance festival evenement"
+        ],
+        [
+          "lefigaro.fr",
+          "site:lefigaro.fr France 2026 ${config.time_range} actualites catastrophe celebrite tendance festival evenement"
+        ],
+        [
+          "rfi.fr",
+          "site:rfi.fr France 2026 ${config.time_range} actualites catastrophe celebrite tendance festival evenement"
+        ]
+      ]
+    },
+    "意大利": {
+      "code": "IT",
+      "currency": "EUR",
+      "region": "欧洲",
+      "media": [
+        [
+          "ansa.it",
+          "site:ansa.it Italy Italia 2026 ${config.time_range} notizie ultime disastro terremoto celebrita virale Carnevale Venezia Serie A"
+        ],
+        [
+          "corriere.it",
+          "site:corriere.it Italy Italia 2026 ${config.time_range} notizie ultime disastro celebrita virale festival evento"
+        ],
+        [
+          "repubblica.it",
+          "site:repubblica.it Italy Italia 2026 ${config.time_range} notizie ultime disastro celebrita virale festival evento"
+        ],
+        [
+          "ilsole24ore.com",
+          "site:ilsole24ore.com Italy Italia 2026 ${config.time_range} notizie ultime disastro celebrita virale festival evento"
+        ]
+      ]
+    },
+    "西班牙": {
+      "code": "ES",
+      "currency": "EUR",
+      "region": "欧洲",
+      "media": [
+        [
+          "elpais.com",
+          "site:elpais.com Spain Espana 2026 ${config.time_range} noticias ultimas desastre incendio celebridad viral La Tomatina San Fermin La Liga"
+        ],
+        [
+          "elmundo.es",
+          "site:elmundo.es Spain Espana 2026 ${config.time_range} noticias ultimas desastre celebridad viral festival evento"
+        ],
+        [
+          "abc.es",
+          "site:abc.es Spain Espana 2026 ${config.time_range} noticias ultimas desastre celebridad viral festival evento"
+        ],
+        [
+          "lavanguardia.com",
+          "site:lavanguardia.com Spain Espana 2026 ${config.time_range} noticias ultimas desastre celebridad viral festival evento"
+        ]
+      ]
+    },
+    "阿联酋": {
+      "code": "AE",
+      "currency": "AED",
+      "region": "中东",
+      "media": [
+        [
+          "gulfnews.com",
+          "site:gulfnews.com UAE Dubai Abu Dhabi 2026 ${config.time_range} news breaking celebrity trending Ramadan Eid Dubai Shopping Festival DSF National Day"
+        ],
+        [
+          "khaleejtimes.com",
+          "site:khaleejtimes.com UAE Dubai 2026 ${config.time_range} news breaking celebrity trending festival event expo"
+        ],
+        [
+          "thenationalnews.com",
+          "site:thenationalnews.com UAE Dubai 2026 ${config.time_range} news breaking celebrity trending festival event"
+        ]
+      ]
+    },
+    "沙特": {
+      "code": "SA",
+      "currency": "SAR",
+      "region": "中东",
+      "media": [
+        [
+          "arabnews.com",
+          "site:arabnews.com Saudi Arabia 2026 ${config.time_range} news breaking celebrity trending Ramadan Eid Riyadh Season National Day"
+        ],
+        [
+          "saudigazette.com.sa",
+          "site:saudigazette.com.sa Saudi Arabia 2026 ${config.time_range} news breaking celebrity trending festival event"
+        ],
+        [
+          "alriyadhdaily.com",
+          "site:alriyadhdaily.com Saudi Arabia 2026 ${config.time_range} news breaking celebrity trending festival event"
+        ]
+      ]
+    }
+  },
+  "sports_searches": [
+    [
+      "espn.com",
+      "site:espn.com 2026 ${config.time_range} Southeast Asia Brazil Mexico football soccer championship match schedule SEA Games Copa America Liga MX Brasileirao"
+    ],
+    [
+      "fifa.com",
+      "site:fifa.com 2026 ${config.time_range} World Cup qualifier Asia South America ASEAN match schedule"
+    ],
+    [
+      "the-afc.com",
+      "site:the-afc.com 2026 ${config.time_range} Asian Cup Champions League AFF Cup SEA Games Vietnam Thailand Indonesia Philippines Malaysia Singapore match schedule"
+    ],
+    [
+      "flashscore.com",
+      "site:flashscore.com 2026 ${config.time_range} Vietnam Thailand Indonesia Philippines Malaysia Singapore Brazil Mexico match schedule final championship"
+    ],
+    [
+      "uefa.com",
+      "site:uefa.com 2026 ${config.time_range} Champions League Europa League Euro match final schedule"
+    ],
+    [
+      "formula1.com",
+      "site:formula1.com 2026 ${config.time_range} Grand Prix race calendar Monaco Silverstone Monza Barcelona Abu Dhabi"
+    ],
+    [
+      "olympics.com",
+      "site:olympics.com 2026 ${config.time_range} Winter Olympics Milano Cortina schedule event"
+    ]
+  ],
+  "rss_feeds": [
+    {
+      "name": "环球网-国际",
+      "url": "https://rsshub.rssforever.com/huanqiu/news/world?limit=100"
+    },
+    {
+      "name": "环球网-军事",
+      "url": "https://rsshub.rssforever.com/huanqiu/news/mil?limit=100"
+    },
+    {
+      "name": "参考消息-国际",
+      "url": "https://rsshub.rssforever.com/cankaoxiaoxi/column/guoji?limit=100"
+    }
+  ],
+  "google_news_queries": []
+}

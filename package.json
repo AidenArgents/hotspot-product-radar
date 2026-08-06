@@ -1,0 +1,26 @@
+{
+  "name": "hotspot-product-radar",
+  "version": "8.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import:n8n": "node scripts/import-n8n-config.mjs",
+    "dev": "tsx watch server.ts",
+    "start": "tsx server.ts",
+    "scan": "tsx cli.ts scan",
+    "build:dashboard": "npm --prefix f/radar/dashboard__raw_app run build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
+    "test:external": "tsx scripts/smoke-external.ts",
+    "test:gemini-retry": "tsx scripts/retry-failed-gemini.ts",
+    "test:secrets": "node scripts/check-no-committed-secrets.mjs"
+  },
+  "dependencies": {
+    "google-auth-library": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

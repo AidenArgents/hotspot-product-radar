@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.runtime/
+.env
+.env.*
+!.env.example
+config/radar_config.local.json
+coverage/
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/*.pid
+data/*.log
