@@ -17,8 +17,16 @@ nav .nav-active { color: #1f5b43; background: #fff; font-weight: 700; box-shadow
 .header-actions { justify-self: end; display: flex; gap: 10px; }
 .ghost, .primary, .clear { border-radius: 10px; padding: 9px 16px; font-weight: 600; }
 .ghost { border: 1px solid #d6ded3; background: #fff; color: #405047; }
+.ghost:disabled { opacity: .72; cursor: wait; }
 .primary { border: 1px solid #1d5b42; color: #fff; background: #1f5b43; box-shadow: 0 8px 18px #1f5b4328; }
 .primary:disabled { opacity: .6; cursor: wait; }
+.refresh-button { min-width: 94px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.refresh-spinner { display: inline-block; font-size: 17px; line-height: 1; animation: refresh-spin .75s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+.refresh-toast { position: fixed; top: 84px; right: 4.2vw; z-index: 45; padding: 11px 15px; border: 1px solid; border-radius: 10px; font-size: 12px; font-weight: 700; box-shadow: 0 12px 35px #1c332538; animation: refresh-toast-in .18s ease-out; }
+.refresh-toast-success { color: #236343; border-color: #acd6bb; background: #edf8f1; }
+.refresh-toast-error { color: #9b302d; border-color: #efb6ae; background: #fff1ef; }
+@keyframes refresh-toast-in { from { transform: translateY(-6px); opacity: 0; } }
 main { width: min(1460px, 92vw); margin: 0 auto; padding: 44px 0 72px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
 .hero > div:first-child { max-width: 780px; }

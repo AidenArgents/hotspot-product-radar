@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ChangeEvent } from "react";
 import { backend } from "./api";
 
 type SettingsValues = {
@@ -42,13 +42,17 @@ type SettingsResponse = {
   restart_required?: boolean;
 };
 
+export type SettingsPanelHandle = {
+  refresh: () => Promise<boolean>;
+};
+
 const dataLineOptions = ["全部", "媒体+网页", "仅假日", "仅媒体", "仅网页", "假日+网页", "假日+媒体"];
 
 function seconds(milliseconds: number) {
   return Number((milliseconds / 1000).toFixed(1));
 }
 
-export default function SettingsPanel() {
+const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, ref) {
   const [snapshot, setSnapshot] = useState<SettingsResponse | null>(null);
   const [values, setValues] = useState<SettingsValues | null>(null);
   const [secretValues, setSecretValues] = useState<Partial<Record<SecretField, string>>>({});
@@ -67,14 +71,17 @@ export default function SettingsPanel() {
       const result = await backend.get_settings({}) as SettingsResponse;
       setSnapshot(result);
       setValues(result.values);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => { void loadSettings(); }, []);
+  useImperativeHandle(ref, () => ({ refresh: loadSettings }));
 
   const scheduleTime = useMemo(() => values
     ? `${String(values.schedule_hour).padStart(2, "0")}:${String(values.schedule_minute).padStart(2, "0")}`
@@ -221,4 +228,6 @@ export default function SettingsPanel() {
       </div>
     </section>
   );
-}
+});
+
+export default SettingsPanel;

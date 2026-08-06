@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { backend, backendAsync, waitJob } from "./api";
-import SettingsPanel from "./SettingsPanel";
+import SettingsPanel, { type SettingsPanelHandle } from "./SettingsPanel";
 
 type Product = {
   name?: string;
@@ -85,6 +85,10 @@ export default function App() {
     time_range: "未来3个月",
     data_lines: "全部",
   });
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const settingsRef = useRef<SettingsPanelHandle>(null);
+  const refreshNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,8 +100,10 @@ export default function App() {
       ]);
       setResult(eventsData as QueryResult);
       setRuns(runsData as RunItem[]);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -107,6 +113,10 @@ export default function App() {
     const timer = setTimeout(load, 180);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => () => {
+    if (refreshNoticeTimer.current) clearTimeout(refreshNoticeTimer.current);
+  }, []);
 
   const stats = useMemo(() => {
     const high = result.items.filter((item) => item.ecommerce_score >= 80).length;
@@ -154,6 +164,53 @@ export default function App() {
     setScanOpen(true);
   }
 
+  async function refreshCurrentPage() {
+    if (refreshing) return;
+    const minimumProgressTime = new Promise((resolve) => setTimeout(resolve, 450));
+    setRefreshing(true);
+    setRefreshNotice(null);
+    setError("");
+
+    let succeeded = false;
+    let pageName = "当前页面";
+    try {
+      if (tab === "settings") {
+        pageName = "系统设置";
+        succeeded = await (settingsRef.current?.refresh() ?? Promise.resolve(false));
+      } else if (tab === "runs") {
+        pageName = "运行记录";
+        const runsData = await backend.query_runs({ limit: 30 });
+        setRuns(runsData as RunItem[]);
+        succeeded = true;
+      } else {
+        pageName = "机会库";
+        setLoading(true);
+        const eventsData = await backend.query_events({ ...filters, limit: 200, offset: 0 });
+        setResult(eventsData as QueryResult);
+        succeeded = true;
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      await minimumProgressTime;
+      setLoading(false);
+      setRefreshing(false);
+    }
+
+    const completedAt = new Intl.DateTimeFormat("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(new Date());
+    setRefreshNotice({
+      kind: succeeded ? "success" : "error",
+      text: succeeded ? `${pageName}已刷新 · ${completedAt}` : `${pageName}刷新失败，请查看错误提示`,
+    });
+    if (refreshNoticeTimer.current) clearTimeout(refreshNoticeTimer.current);
+    refreshNoticeTimer.current = setTimeout(() => setRefreshNotice(null), 3200);
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -170,10 +227,15 @@ export default function App() {
           <button className={tab === "settings" ? "nav-active" : ""} onClick={() => setTab("settings")}>系统设置</button>
         </nav>
         <div className="header-actions">
-          <button className="ghost" onClick={load}>刷新</button>
+          <button className="ghost refresh-button" onClick={refreshCurrentPage} disabled={refreshing} aria-busy={refreshing}>
+            {refreshing && <span className="refresh-spinner">↻</span>}
+            {refreshing ? "刷新中…" : "刷新"}
+          </button>
           <button className="primary" onClick={openScan}>＋ 立即扫描</button>
         </div>
       </header>
+
+      {refreshNotice && <div className={`refresh-toast refresh-toast-${refreshNotice.kind}`} role="status" aria-live="polite">{refreshNotice.text}</div>}
 
       <main>
         <section className="hero">
@@ -275,7 +337,7 @@ export default function App() {
             </div>
           </section>
         ) : (
-          <SettingsPanel />
+          <SettingsPanel ref={settingsRef} />
         )}
       </main>
 
