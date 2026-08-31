@@ -19,5 +19,6 @@ data/*.log
 release.zip
 version.txt
 /scripts/publish-release.ps1
+/scripts/publish-update.ps1
 # 发布 Token（项目文件夹内，绝不提交）
 .publish-token
