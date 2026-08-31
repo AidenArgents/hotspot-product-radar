@@ -6,6 +6,7 @@ import {
   isLineSelected,
   mapLimit,
   normalizeDate,
+  normalizeTargetCountry,
   timeWindow,
 } from "../f/radar/lib.ts";
 
@@ -22,6 +23,11 @@ test("目标区域仍是东南亚 6 国与拉美 2 国", () => {
   ]);
   assert.deepEqual(countriesForTarget("拉美"), ["巴西", "墨西哥"]);
   assert.equal(countriesForTarget("全部").length, 8);
+  assert.deepEqual(
+    countriesForTarget("东南亚", ["越南", "泰国", "巴西"]),
+    ["越南", "泰国"],
+  );
+  assert.deepEqual(countriesForTarget("新加坡", ["越南", "泰国"]), []);
 });
 
 test("时间范围保留原流程的计算语义", () => {
@@ -46,4 +52,11 @@ test("日期归一化与并发映射顺序稳定", async () => {
     return delay;
   });
   assert.deepEqual(output, [30, 1, 10]);
+});
+
+test("网页线路国家名称统一为系统的8国标准", () => {
+  assert.equal(normalizeTargetCountry("印度尼西亚"), "印尼");
+  assert.equal(normalizeTargetCountry("Indonesia"), "印尼");
+  assert.equal(normalizeTargetCountry("México"), "墨西哥");
+  assert.equal(normalizeTargetCountry("Colombia"), undefined);
 });

@@ -29,13 +29,13 @@ if not exist "%PROJECT_ROOT%node_modules\tsx\dist\cli.mjs" set "NEED_INSTALL=1"
 if not exist "%PROJECT_ROOT%f\radar\dashboard__raw_app\dist\index.html" set "NEED_INSTALL=1"
 
 if defined NEED_INSTALL (
-  echo [INFO] Required files are missing. Running install.bat...
-  call "%PROJECT_ROOT%install.bat" /quiet
+  echo [INFO] Required files are missing. Running 安装.bat...
+  call "%PROJECT_ROOT%安装.bat" /quiet
   if errorlevel 1 goto failed
 )
 
 if not exist "%PROJECT_ROOT%config\radar_config.local.json" (
-  echo [ERROR] Central configuration is missing. Run setup.bat first.
+  echo [ERROR] Central configuration is missing. Run 初始化.bat first.
   goto failed
 )
 
@@ -48,7 +48,7 @@ if errorlevel 1 goto failed
 
 echo.
 echo [OK] Hotspot Product Radar is running in the background.
-echo Use stop.bat to close it and status.bat to check it.
+echo Use 停止.bat to close it and 状态.bat to check it.
 if defined QUIET exit /b 0
 echo Press any key to close this window...
 pause >nul

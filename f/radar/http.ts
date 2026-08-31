@@ -71,7 +71,12 @@ export async function fetchText(
   const causeCode = lastError instanceof Error
     ? (lastError.cause as { code?: string } | undefined)?.code
     : undefined;
-  if (url.startsWith("https://") && ["UND_ERR_SOCKET", "ECONNRESET", "ETIMEDOUT"].includes(causeCode ?? "")) {
+  if (url.startsWith("https://") && [
+    "UND_ERR_SOCKET",
+    "UND_ERR_CONNECT_TIMEOUT",
+    "ECONNRESET",
+    "ETIMEDOUT",
+  ].includes(causeCode ?? "")) {
     return fetchTextViaHttps(url, options);
   }
   if (lastError instanceof Error) {

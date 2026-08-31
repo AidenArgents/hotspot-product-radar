@@ -9,6 +9,8 @@ import { fetchJson } from "./http.ts";
 const execFileAsync = promisify(execFile);
 let geminiStartGate = Promise.resolve();
 let nextGeminiStart = 0;
+let nextGeminiKeyIndex = 0;
+const geminiKeyCooldowns = new Map<string, number>();
 
 async function waitForGeminiSlot(minIntervalMs: number) {
   let release!: () => void;
@@ -28,20 +30,27 @@ function quotaRetryMs(error: unknown): number {
   return Math.ceil((Number(match?.[1] ?? 60) + 1) * 1000);
 }
 
-async function runGeminiRequest<T>(
-  request: () => Promise<T>,
-  minIntervalMs: number,
-): Promise<T> {
-  await waitForGeminiSlot(minIntervalMs);
-  try {
-    return await request();
-  } catch (error) {
-    const waitMs = quotaRetryMs(error);
-    if (!waitMs) throw error;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-    await waitForGeminiSlot(minIntervalMs);
-    return request();
-  }
+export function configuredGeminiApiKeys(config: RadarConfig): string[] {
+  return [...new Set([
+    config.gemini_api_key,
+    config.gemini_api_key_2,
+  ].map((value) => String(value ?? "").trim()).filter(Boolean))];
+}
+
+function rotatedGeminiApiKeys(config: RadarConfig): string[] {
+  const keys = configuredGeminiApiKeys(config);
+  if (keys.length < 2) return keys;
+  const start = nextGeminiKeyIndex % keys.length;
+  nextGeminiKeyIndex = (nextGeminiKeyIndex + 1) % keys.length;
+  return [...keys.slice(start), ...keys.slice(0, start)];
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function redactApiKeys(message: string, keys: string[]): string {
+  return keys.reduce((result, key) => result.replaceAll(key, "[REDACTED]"), message);
 }
 
 interface GeminiResponse {
@@ -86,6 +95,23 @@ async function callGeminiWithCurl(
   }
 }
 
+function normalizeProducts(events: RadarEvent[]): RadarEvent[] {
+  for (const event of events) {
+    if (!Array.isArray(event.products)) continue;
+    event.products = event.products.map((product) => {
+      const p = product as unknown as Record<string, unknown>;
+      const name = p.name ?? p["name_中文"] ?? p.product_name ?? "";
+      const price_range = p.price_range ?? p["price_range_当地货币"] ?? p.price ?? "";
+      return {
+        ...p,
+        name: String(name),
+        price_range: String(price_range),
+      };
+    });
+  }
+  return events;
+}
+
 export function parseGeminiEvents(text: string): RadarEvent[] {
   const fenced = text.match(/```json\s*([\s\S]*?)```/i);
   let candidate = fenced ? fenced[1].trim() : text.trim();
@@ -94,7 +120,7 @@ export function parseGeminiEvents(text: string): RadarEvent[] {
   if (start >= 0 && end > start) {
     try {
       const parsed = JSON.parse(candidate.slice(start, end)) as { events?: RadarEvent[] };
-      if (Array.isArray(parsed.events)) return parsed.events;
+      if (Array.isArray(parsed.events)) return normalizeProducts(parsed.events);
     } catch {
       // 与原流程一致：完整 JSON 失败后尝试保留已经闭合的事件对象。
     }
@@ -106,7 +132,7 @@ export function parseGeminiEvents(text: string): RadarEvent[] {
     try {
       const repaired = `${candidate.slice(0, lastComplete + 1)}]}`;
       const parsed = JSON.parse(repaired) as { events?: RadarEvent[] };
-      if (Array.isArray(parsed.events)) return parsed.events;
+      if (Array.isArray(parsed.events)) return normalizeProducts(parsed.events);
     } catch {
       return [];
     }
@@ -114,10 +140,12 @@ export function parseGeminiEvents(text: string): RadarEvent[] {
   return [];
 }
 
-export async function callGemini(
+export async function callGeminiText(
   config: RadarConfig,
   prompt: string,
-): Promise<{ events: RadarEvent[]; rawText: string }> {
+): Promise<string> {
+  const configuredKeys = configuredGeminiApiKeys(config);
+  if (!configuredKeys.length) throw new Error("Gemini API Key 尚未配置");
   const baseUrl =
     `https://generativelanguage.googleapis.com/v1beta/models/` +
     `${encodeURIComponent(config.gemini_model)}:generateContent`;
@@ -125,50 +153,79 @@ export async function callGemini(
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.3, maxOutputTokens: 65536 },
   });
-  const fetchRequest = () => fetchJson<GeminiResponse>(
-    `${baseUrl}?key=${encodeURIComponent(config.gemini_api_key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: requestBody,
-      timeoutMs: config.gemini_timeout_ms,
-      retries: 0,
-    },
-  );
-  const curlRequest = () => callGeminiWithCurl(
-    baseUrl,
-    config.gemini_api_key,
-    requestBody,
-    config.gemini_timeout_ms,
-    config.https_proxy,
-  );
   // 这台 Windows 的 Google 长 POST 直连偶发 TLS reset；长提示优先走本机代理。
   const preferProxy = Boolean(config.https_proxy) && requestBody.length >= 6000;
-  let response: GeminiResponse;
-  try {
-    response = await runGeminiRequest(
-      preferProxy ? curlRequest : fetchRequest,
-      config.gemini_min_interval_ms,
+
+  const requestWithKey = async (apiKey: string): Promise<GeminiResponse> => {
+    const fetchRequest = () => fetchJson<GeminiResponse>(
+      `${baseUrl}?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: requestBody,
+        timeoutMs: config.gemini_timeout_ms,
+        retries: 0,
+      },
     );
-  } catch (primaryError) {
-    if (quotaRetryMs(primaryError)) {
-      const message = (primaryError instanceof Error ? primaryError.message : String(primaryError))
-        .replaceAll(config.gemini_api_key, "[REDACTED]");
-      throw new Error(`Gemini 配额等待后仍未恢复：${message}`);
-    }
+    const curlRequest = () => callGeminiWithCurl(
+      baseUrl,
+      apiKey,
+      requestBody,
+      config.gemini_timeout_ms,
+      config.https_proxy,
+    );
+    await waitForGeminiSlot(config.gemini_min_interval_ms);
     try {
-      response = await runGeminiRequest(
-        preferProxy ? fetchRequest : curlRequest,
-        config.gemini_min_interval_ms,
-      );
-    } catch (fallbackError) {
-      const first = (primaryError instanceof Error ? primaryError.message : String(primaryError))
-        .replaceAll(config.gemini_api_key, "[REDACTED]");
-      const second = (fallbackError instanceof Error ? fallbackError.message : String(fallbackError))
-        .replaceAll(config.gemini_api_key, "[REDACTED]");
-      throw new Error(`Gemini 主请求与回退均失败：${first} | ${second}`);
+      return await (preferProxy ? curlRequest : fetchRequest)();
+    } catch (primaryError) {
+      if (quotaRetryMs(primaryError)) throw primaryError;
+      await waitForGeminiSlot(config.gemini_min_interval_ms);
+      try {
+        return await (preferProxy ? fetchRequest : curlRequest)();
+      } catch (fallbackError) {
+        const first = redactApiKeys(messageOf(primaryError), configuredKeys);
+        const second = redactApiKeys(messageOf(fallbackError), configuredKeys);
+        throw new Error(`Gemini 主请求与回退均失败：${first} | ${second}`);
+      }
+    }
+  };
+
+  const quotaErrors: string[] = [];
+  for (let round = 0; round < 2; round += 1) {
+    const keys = rotatedGeminiApiKeys(config);
+    for (const apiKey of keys) {
+      if ((geminiKeyCooldowns.get(apiKey) ?? 0) > Date.now()) continue;
+      try {
+        const response = await requestWithKey(apiKey);
+        geminiKeyCooldowns.delete(apiKey);
+        return response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      } catch (error) {
+        const retryMs = quotaRetryMs(error);
+        if (!retryMs) throw error;
+        geminiKeyCooldowns.set(apiKey, Date.now() + retryMs);
+        quotaErrors.push(redactApiKeys(messageOf(error), configuredKeys));
+      }
+    }
+
+    if (round === 0) {
+      const waits = keys
+        .map((key) => Math.max(0, (geminiKeyCooldowns.get(key) ?? 0) - Date.now()))
+        .filter((waitMs) => waitMs > 0);
+      if (waits.length) {
+        await new Promise((resolve) => setTimeout(resolve, Math.min(...waits)));
+      }
     }
   }
-  const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+  const mode = configuredKeys.length > 1 ? "两个 Gemini Key" : "Gemini Key";
+  const details = quotaErrors.at(-1) ?? "请求配额暂未恢复";
+  throw new Error(`${mode}均达到配额限制：${details}`);
+}
+
+export async function callGemini(
+  config: RadarConfig,
+  prompt: string,
+): Promise<{ events: RadarEvent[]; rawText: string }> {
+  const rawText = await callGeminiText(config, prompt);
   return { events: parseGeminiEvents(rawText), rawText };
 }

@@ -7,6 +7,11 @@ import type {
 } from "./types.ts";
 import { SOURCE_CATALOG } from "./source_catalog.ts";
 
+export const TARGET_COUNTRIES = Object.freeze(
+  Object.values(SOURCE_CATALOG.regions as Record<string, readonly string[]>)
+    .flatMap((items) => [...items]),
+);
+
 export function todayIso(now = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
@@ -19,11 +24,18 @@ export function isLineSelected(dataLines: DataLines, line: SourceLine): boolean 
   return dataLines === "全部" || dataLines.includes(line);
 }
 
-export function countriesForTarget(target: TargetRegion): string[] {
+export function countriesForTarget(
+  target: TargetRegion,
+  enabledCountries: readonly string[] = TARGET_COUNTRIES,
+): string[] {
   const regions = SOURCE_CATALOG.regions as Record<string, readonly string[]>;
-  if (target === "全部") return Object.values(regions).flatMap((items) => [...items]);
-  if (regions[target]) return [...regions[target]];
-  return [target];
+  const enabled = new Set(enabledCountries);
+  const selected = target === "全部"
+    ? TARGET_COUNTRIES
+    : regions[target]
+      ? [...regions[target]]
+      : [target];
+  return selected.filter((country) => enabled.has(country));
 }
 
 export function timeWindow(
@@ -89,3 +101,18 @@ export function normalizeDate(value: unknown): string | undefined {
   return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
 }
 
+const TARGET_COUNTRY_ALIASES: Record<string, string> = {
+  "越南": "越南", vietnam: "越南",
+  "泰国": "泰国", thailand: "泰国",
+  "印尼": "印尼", "印度尼西亚": "印尼", indonesia: "印尼",
+  "菲律宾": "菲律宾", philippines: "菲律宾", "the philippines": "菲律宾",
+  "马来西亚": "马来西亚", malaysia: "马来西亚",
+  "新加坡": "新加坡", singapore: "新加坡",
+  "巴西": "巴西", brazil: "巴西", brasil: "巴西",
+  "墨西哥": "墨西哥", mexico: "墨西哥", méxico: "墨西哥",
+};
+
+export function normalizeTargetCountry(value: unknown): string | undefined {
+  const text = String(value ?? "").trim();
+  return TARGET_COUNTRY_ALIASES[text] ?? TARGET_COUNTRY_ALIASES[text.toLowerCase()];
+}

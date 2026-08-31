@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)]
   [string]$InstallParent,
   [switch]$Quiet
@@ -115,20 +115,20 @@ try {
     Write-Host "[OK] Existing local configuration was preserved."
   }
 
-  $installBat = Join-Path $projectRoot "install.bat"
-  $startBat = Join-Path $projectRoot "start.bat"
+  $installBat = Join-Path $projectRoot "安装.bat"
+  $startBat = Join-Path $projectRoot "启动.bat"
 
   Write-Host "[INFO] Installing project dependencies..."
   & $env:ComSpec /d /c "call `"$installBat`" /quiet"
   if ($LASTEXITCODE -ne 0) {
-    throw "install.bat failed."
+    throw "安装.bat failed."
   }
 
   Write-Host "[INFO] Starting Hotspot Product Radar..."
   $startArguments = if ($Quiet) { "/quiet /nobrowser" } else { "/quiet" }
   & $env:ComSpec /d /c "call `"$startBat`" $startArguments"
   if ($LASTEXITCODE -ne 0) {
-    throw "start.bat failed."
+    throw "启动.bat failed."
   }
 
   if ($createdConfig -and -not $Quiet) {

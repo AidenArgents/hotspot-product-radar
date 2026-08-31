@@ -1,7 +1,9 @@
 import { SOURCE_CATALOG } from "./source_catalog.ts";
 import { callGemini } from "./gemini.ts";
+import { parseGdacs } from "./gdacs.ts";
 import { fetchText } from "./http.ts";
-import { isLineSelected, mapLimit } from "./lib.ts";
+import { countriesForTarget, dedupeEvents, isLineSelected, mapLimit, normalizeDate, normalizeTargetCountry } from "./lib.ts";
+import { parseRss } from "./rss.ts";
 import type {
   BranchResult,
   RadarConfig,
@@ -9,36 +11,23 @@ import type {
   SourceExecutionRecord,
 } from "./types.ts";
 
-function parseRss(
-  xml: string,
-  sourceName: string,
-  seenTitles: Set<string>,
-): string[] {
-  const articles: string[] = [];
-  for (const item of xml.split("<item>").slice(1)) {
-    const titleMatch = item.match(
-      /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/,
-    );
-    const descriptionMatch = item.match(
-      /<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/s,
-    );
-    const title = (titleMatch?.[1] || titleMatch?.[2] || "").trim();
-    const description = (descriptionMatch?.[1] || descriptionMatch?.[2] || "")
-      .trim()
-      .replace(/<[^>]+>/g, "")
-      .slice(0, 300);
-    if (title.length <= 5) continue;
-    const shortTitle = title.slice(0, 20);
-    if (seenTitles.has(shortTitle)) continue;
-    seenTitles.add(shortTitle);
-    articles.push(`[${sourceName}] ${title}${description ? ` - ${description}` : ""}`);
-  }
-  return articles;
-}
+type RssFeedConfig = {
+  name: string;
+  url: string;
+  country?: string;
+  max_age_days?: number;
+  official?: boolean;
+};
+
+const GDACS_ISO3_BY_COUNTRY: Record<string, string> = {
+  越南: "VNM", 泰国: "THA", 印尼: "IDN", 菲律宾: "PHL",
+  马来西亚: "MYS", 新加坡: "SGP", 巴西: "BRA", 墨西哥: "MEX",
+};
 
 export async function collectWeb(
   config: RadarConfig,
   context: RuntimeContext,
+  analyzeProducts = true,
 ): Promise<BranchResult> {
   if (!isLineSelected(context.data_lines, "网页")) {
     return {
@@ -58,9 +47,68 @@ export async function collectWeb(
     };
   }
 
+  const enabledCountries = countriesForTarget("全部", config.enabled_countries);
+  const enabledCountrySet = new Set(enabledCountries);
   const seenTitles = new Set<string>();
+  context.onProgress?.('正在收集网页 RSS 资讯...');
+  const gdacsConfig = SOURCE_CATALOG.gdacs;
+  const gdacsPromise = (async () => {
+    context.onProgress?.("正在收集 GDACS 灾害预警...");
+    try {
+      const xml = await fetchText(gdacsConfig.url, {
+        headers: {
+          "User-Agent": "HotspotProductRadar/8.0 RSS Reader",
+          Accept: "application/rss+xml, application/xml, text/xml",
+        },
+        timeoutMs: Math.max(config.request_timeout_ms, 30000),
+        retries: 1,
+      });
+      const parsedAll = parseGdacs(xml, {
+        currentDate: context.current_date,
+        maxAgeDays: gdacsConfig.max_age_days,
+        maxItems: gdacsConfig.max_items,
+      });
+      const parsed = {
+        ...parsedAll,
+        alerts: parsedAll.alerts.filter((alert) => enabledCountrySet.has(alert.country)),
+      };
+      return {
+        articles: parsed.alerts.map((alert) => alert.line),
+        execution: {
+          source_line: "网页",
+          source_kind: "gdacs",
+          source_name: gdacsConfig.name,
+          request_key: "web:gdacs:target-countries",
+          status: parsed.alerts.length ? "success" : "partial",
+          item_count: parsed.alerts.length,
+          request_payload: {
+            url: gdacsConfig.url,
+            target_countries: enabledCountries.map((country) => GDACS_ISO3_BY_COUNTRY[country]),
+            max_age_days: gdacsConfig.max_age_days,
+          },
+          response_payload: parsed,
+          error: parsed.alerts.length ? undefined : "GDACS当前没有目标8国的近期有效预警",
+        } satisfies SourceExecutionRecord,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        articles: [],
+        execution: {
+          source_line: "网页",
+          source_kind: "gdacs",
+          source_name: gdacsConfig.name,
+          request_key: "web:gdacs:target-countries",
+          status: "failed",
+          request_payload: { url: gdacsConfig.url },
+          error: message,
+        } satisfies SourceExecutionRecord,
+      };
+    }
+  })();
   const feedRuns = await mapLimit(
-    SOURCE_CATALOG.rss_feeds,
+    (SOURCE_CATALOG.rss_feeds as RssFeedConfig[])
+      .filter((feed) => !feed.country || enabledCountrySet.has(feed.country)),
     config.site_concurrency,
     async (feed) => {
       try {
@@ -69,30 +117,45 @@ export async function collectWeb(
             "User-Agent": "Mozilla/5.0 RSS Reader",
             Accept: "application/rss+xml, application/xml, text/xml",
           },
-          timeoutMs: 3600000,
+          timeoutMs: Math.max(config.request_timeout_ms, 30000),
           retries: 1,
         });
-        const articles = parseRss(xml, feed.name, seenTitles);
+        const parsed = parseRss(xml, {
+          sourceName: feed.name,
+          country: feed.country,
+          currentDate: context.current_date,
+          maxAgeDays: feed.max_age_days ?? 14,
+          seenTitles,
+          maxItems: 30,
+        });
+        const articles = parsed.articles.map((article) => article.line);
         return {
           articles,
+          official: Boolean(feed.official),
           execution: {
             source_line: "网页",
             source_kind: "rss",
+            country: feed.country,
             source_name: feed.name,
             request_key: `web:rss:${feed.name}`,
-            status: "success",
+            status: articles.length ? "success" : "partial",
             item_count: articles.length,
             request_payload: { url: feed.url },
-            response_payload: { articles },
+            response_payload: parsed,
+            error: articles.length
+              ? undefined
+              : `RSS共${parsed.total}条，但没有通过${feed.max_age_days ?? 14}天新鲜度和重复校验的内容`,
           } satisfies SourceExecutionRecord,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return {
-          articles: [`[${feed.name}] RSS失败: ${message}`],
+          articles: [],
+          official: Boolean(feed.official),
           execution: {
             source_line: "网页",
             source_kind: "rss",
+            country: feed.country,
             source_name: feed.name,
             request_key: `web:rss:${feed.name}`,
             status: "failed",
@@ -103,11 +166,13 @@ export async function collectWeb(
       }
     },
   );
+  const gdacsRun = await gdacsPromise;
 
   const googleNewsQueries = SOURCE_CATALOG.google_news_queries as readonly {
     name: string;
     query: string;
   }[];
+  context.onProgress?.('正在收集 Google 网页新闻...');
   const googleNewsRuns = await mapLimit(
     googleNewsQueries,
     config.site_concurrency,
@@ -116,10 +181,17 @@ export async function collectWeb(
       try {
         const xml = await fetchText(url, {
           headers: { "User-Agent": "Mozilla/5.0 RSS Reader" },
-          timeoutMs: 3600000,
+          timeoutMs: Math.max(config.request_timeout_ms, 30000),
           retries: 1,
         });
-        const articles = parseRss(xml, `GoogleNews-${item.name}`, seenTitles);
+        const parsed = parseRss(xml, {
+          sourceName: `GoogleNews-${item.name}`,
+          currentDate: context.current_date,
+          maxAgeDays: 14,
+          seenTitles,
+          maxItems: 20,
+        });
+        const articles = parsed.articles.map((article) => article.line);
         return {
           articles,
           execution: {
@@ -127,16 +199,17 @@ export async function collectWeb(
             source_kind: "google-news-rss",
             source_name: item.name,
             request_key: `web:google-news:${item.name}`,
-            status: "success",
+            status: articles.length ? "success" : "partial",
             item_count: articles.length,
             request_payload: { query: item.query, url },
-            response_payload: { articles },
+            response_payload: parsed,
+            error: articles.length ? undefined : "Google News RSS没有近期有效结果",
           } satisfies SourceExecutionRecord,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return {
-          articles: [`[GoogleNews-${item.name}] 失败: ${message}`],
+          articles: [],
           execution: {
             source_line: "网页",
             source_kind: "google-news-rss",
@@ -151,15 +224,15 @@ export async function collectWeb(
     },
   );
 
-  const allArticles = [...feedRuns, ...googleNewsRuns].flatMap(
+  const allArticles = [gdacsRun, ...feedRuns, ...googleNewsRuns].flatMap(
     (run) => run.articles,
   );
-  const executions: SourceExecutionRecord[] = [...feedRuns, ...googleNewsRuns].map(
+  const executions: SourceExecutionRecord[] = [gdacsRun, ...feedRuns, ...googleNewsRuns].map(
     (run) => run.execution,
   );
-  const validArticles = allArticles.filter((article) => !article.includes("失败"));
+  const validArticles = allArticles;
   if (validArticles.length === 0) {
-    const errors = allArticles.filter((article) => article.includes("失败")).join(" | ");
+    const errors = executions.map((execution) => execution.error).filter(Boolean).join(" | ");
     return {
       line: "网页",
       data_source: "RSS/新闻",
@@ -170,32 +243,62 @@ export async function collectWeb(
     };
   }
 
-  // 与原流程保持一致：网页线路固定筛选全部 8 个目标国家。
-  const targetCountries = "越南、泰国、印尼、菲律宾、马来西亚、新加坡、巴西、墨西哥";
+  // 网页线路仍一次分析全部目标国家，但只保留设置中启用的国家。
+  const targetCountries = enabledCountries.join("、");
+  // 各来源限额，避免任一大 RSS 或 GDACS 吞掉 Gemini 的字符预算。
+  const promptLines = [
+    ...gdacsRun.articles.slice(0, 8),
+    ...feedRuns.filter((run) => run.official).flatMap((run) => run.articles.slice(0, 4)),
+    ...feedRuns.filter((run) => !run.official).flatMap((run) => run.articles.slice(0, 2)),
+    ...googleNewsRuns.flatMap((run) => run.articles.slice(0, 3)),
+  ];
+  if (!analyzeProducts) {
+    return {
+      line: "网页",
+      data_source: "RSS/新闻/GDACS",
+      events: [],
+      top10_events: [],
+      analysis: `共享证据：RSS ${SOURCE_CATALOG.rss_feeds.length}源+GDACS，共${validArticles.length}条`,
+      executions,
+    };
+  }
   const prompt = `你是跨境电商选品专家。今天：${context.current_date}，时间范围：${context.time_range}
 
-数据来源：RSS新闻订阅 + Google新闻
-目标国家：${targetCountries}（只分析与这8个国家相关的新闻）
+数据来源：官方通讯社RSS + 现有RSS新闻订阅 + GDACS结构化灾害预警 + Google新闻
+目标国家：${targetCountries}（只分析与这${enabledCountries.length}个已启用国家相关的新闻）
 规则：不卖服装鞋类！所有内容用中文。
 
-从以下新闻中，筛选与上述8个国家相关的热点，找出有跨境电商选品价值的事件。
+从以下新闻中，筛选与上述已启用国家相关的热点，找出有跨境电商选品价值的事件。
 对每个事件输出：event_id, event_name(中文), event_type, country(中文), region(东南亚或拉美), currency, date(YYYY-MM-DD), stage(预告期/进行中/已过/节后余温), source("RSS/新闻"), ecommerce_score(0-100), products(3个,含name中文/category/price_range当地货币/keywords_en[]/keywords_local[]), best_listing_time(中文), why_sellable(中文)
 
-如果没有与这8个国家相关的新闻，输出 {"events": []}
+如果没有与这些已启用国家相关的新闻，输出 {"events": []}
 只输出纯JSON，直接以 {"events":[ 开头。最多10个事件。
 
-新闻数据(RSS ${SOURCE_CATALOG.rss_feeds.length}源 + GoogleNews ${SOURCE_CATALOG.google_news_queries.length}源, 共${validArticles.length}条)：
-${allArticles.join("\n").slice(0, 15000)}`;
+新闻与预警数据(RSS ${SOURCE_CATALOG.rss_feeds.length}源 + GDACS + GoogleNews ${SOURCE_CATALOG.google_news_queries.length}源, 有效${validArticles.length}条，本次均衡送入${promptLines.length}条)：
+${promptLines.join("\n").slice(0, 15000)}`;
+
+  context.onProgress?.('正在通过 Gemini 分析全局新闻热点...');
 
   try {
     const response = await callGemini(config, prompt);
-    const history = new Set(context.history_ids);
-    const events = response.events
-      .filter((event) => !history.has(event.event_id ?? ""))
-      .map((event) => ({
+    const countryConfigs = SOURCE_CATALOG.countries as unknown as Record<
+      string,
+      { region: string; currency: string }
+    >;
+    const normalizedEvents = response.events.flatMap((event) => {
+      const country = normalizeTargetCountry(event.country);
+      const countryConfig = country ? countryConfigs[country] : undefined;
+      if (!country || !countryConfig || !enabledCountrySet.has(country)) return [];
+      return [{
         ...event,
-        data_source: "RSS/新闻",
-      }));
+        country,
+        region: countryConfig.region,
+        currency: countryConfig.currency,
+        date: normalizeDate(event.date),
+        data_source: "RSS/新闻/GDACS",
+      }];
+    });
+    const events = dedupeEvents(normalizedEvents, context.history_ids);
     executions.push({
       source_line: "网页",
       source_kind: "gemini",
@@ -212,8 +315,8 @@ ${allArticles.join("\n").slice(0, 15000)}`;
       events,
       top10_events: events.slice(0, 10),
       analysis:
-        `RSS ${SOURCE_CATALOG.rss_feeds.length}源+GNews ${SOURCE_CATALOG.google_news_queries.length}源` +
-        ` → ${validArticles.length}条 → ${events.length}个新事件`,
+        `RSS ${SOURCE_CATALOG.rss_feeds.length}源+GDACS+GNews ${SOURCE_CATALOG.google_news_queries.length}源` +
+        ` → ${validArticles.length}条有效证据 → ${events.length}个新事件`,
       executions,
     };
   } catch (error) {

@@ -7,9 +7,14 @@ import { main as initDatabase } from "./f/radar/init_database.ts";
 import { queryEvents } from "./f/radar/query_events.ts";
 import { main as queryRuns } from "./f/radar/query_runs.ts";
 import { main as queryRunDetail } from "./f/radar/query_run_detail.ts";
+import { main as querySourceHealth } from "./f/radar/query_source_health.ts";
+import { queryOperations } from "./f/radar/query_operations.ts";
+import { queryOperationRuns } from "./f/radar/query_operation_runs.ts";
+import { queryOperationRunDetail } from "./f/radar/query_operation_run_detail.ts";
 import { runScan } from "./f/radar/run_scan.ts";
+import { runOperationsScan } from "./f/radar/run_operations.ts";
 import { applySettingsUpdate, LIVE_CONFIG_FIELDS, publicSettings } from "./f/radar/settings.ts";
-import type { DataLines, ScanInput, SourceLine, TargetRegion, TimeRange } from "./f/radar/types.ts";
+import type { DataLines, OperationScanInput, ScanInput, SourceLine, TargetRegion, TimeRange } from "./f/radar/types.ts";
 
 type Job = {
   id: string;
@@ -18,6 +23,8 @@ type Job = {
   finished_at?: string;
   result?: unknown;
   error?: string;
+  progress?: string;
+  module?: "product" | "operations";
 };
 
 const config = loadConfig();
@@ -26,6 +33,7 @@ const jobs = new Map<string, Job>();
 const dashboardDist = path.join(PROJECT_ROOT, "f", "radar", "dashboard__raw_app", "dist");
 let activeScan: Promise<unknown> | null = null;
 let lastScheduledDate = "";
+let lastOperationsScheduledDate = "";
 
 function json(response: ServerResponse, status: number, value: unknown) {
   response.writeHead(status, {
@@ -47,9 +55,30 @@ async function body(request: IncomingMessage): Promise<Record<string, unknown>> 
 function startJob(input: ScanInput) {
   if (activeScan) throw new Error("已有扫描正在运行，请等待完成");
   const id = crypto.randomUUID();
-  const job: Job = { id, status: "running", started_at: new Date().toISOString() };
+  const job: Job = { id, module: "product", status: "running", started_at: new Date().toISOString(), progress: "初始化中..." };
   jobs.set(id, job);
-  activeScan = runScan(config, input, true, true)
+  activeScan = runScan(config, input, true, true, (msg) => { job.progress = msg; })
+    .then((result) => {
+      Object.assign(job, { status: "success", result, finished_at: new Date().toISOString() });
+      return result;
+    })
+    .catch((error) => {
+      Object.assign(job, {
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+        finished_at: new Date().toISOString(),
+      });
+    })
+    .finally(() => { activeScan = null; });
+  return job;
+}
+
+function startOperationsJob(input: OperationScanInput) {
+  if (activeScan) throw new Error("已有扫描正在运行，请等待完成");
+  const id = crypto.randomUUID();
+  const job: Job = { id, module: "operations", status: "running", started_at: new Date().toISOString(), progress: "初始化运营情报..." };
+  jobs.set(id, job);
+  activeScan = runOperationsScan(config, input, true, true, (msg) => { job.progress = msg; })
     .then((result) => {
       Object.assign(job, { status: "success", result, finished_at: new Date().toISOString() });
       return result;
@@ -97,6 +126,9 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
       schedule: config.schedule_enabled
         ? `${String(config.schedule_hour).padStart(2, "0")}:${String(config.schedule_minute).padStart(2, "0")}`
         : "disabled",
+      operations_schedule: config.operations_schedule_enabled
+        ? `${String(config.operations_schedule_hour).padStart(2, "0")}:${String(config.operations_schedule_minute).padStart(2, "0")}`
+        : "disabled",
     });
   }
   if (request.method === "GET" && url.pathname === "/api/settings") {
@@ -128,6 +160,7 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
       Object.fromEntries(LIVE_CONFIG_FIELDS.map((field) => [field, loaded[field]])),
     );
     lastScheduledDate = "";
+    lastOperationsScheduledDate = "";
     return json(response, 200, {
       ...publicSettings(readConfig(), { localRequest: isLocalRequest(request) }),
       changed_fields: update.changed_fields,
@@ -144,6 +177,8 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
       date_from: queryString(url, "date_from"),
       date_to: queryString(url, "date_to"),
       search: queryString(url, "search"),
+      sort_by: (queryString(url, "sort_by") || "first_seen_at") as "first_seen_at" | "ecommerce_score",
+      sort_order: (queryString(url, "sort_order") || "desc") as "asc" | "desc",
       limit: Number(queryString(url, "limit") || 100),
       offset: Number(queryString(url, "offset") || 0),
     });
@@ -151,6 +186,27 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
   }
   if (request.method === "GET" && url.pathname === "/api/runs") {
     return json(response, 200, await queryRuns(config, Number(queryString(url, "limit") || 30)));
+  }
+  if (request.method === "GET" && url.pathname === "/api/source-health") {
+    return json(response, 200, await querySourceHealth(config));
+  }
+  if (request.method === "GET" && url.pathname === "/api/operations") {
+    return json(response, 200, await queryOperations(config, {
+      region: queryString(url, "region"), country: queryString(url, "country"),
+      category: queryString(url, "category"), direction: queryString(url, "direction"),
+      urgency: queryString(url, "urgency"), min_score: Number(queryString(url, "min_score") || 0),
+      date_from: queryString(url, "date_from"), search: queryString(url, "search"),
+      sort_by: (queryString(url, "sort_by") || "first_seen_at") as "first_seen_at" | "impact_score" | "effective_date",
+      sort_order: (queryString(url, "sort_order") || "desc") as "asc" | "desc",
+      limit: Number(queryString(url, "limit") || 100), offset: Number(queryString(url, "offset") || 0),
+    }));
+  }
+  if (request.method === "GET" && url.pathname === "/api/operations/runs") {
+    return json(response, 200, await queryOperationRuns(config, Number(queryString(url, "limit") || 30)));
+  }
+  const operationDetailMatch = url.pathname.match(/^\/api\/operations\/runs\/([^/]+)$/);
+  if (request.method === "GET" && operationDetailMatch) {
+    return json(response, 200, await queryOperationRunDetail(config, decodeURIComponent(operationDetailMatch[1])));
   }
   const detailMatch = url.pathname.match(/^\/api\/runs\/([^/]+)$/);
   if (request.method === "GET" && detailMatch) {
@@ -163,6 +219,16 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
       time_range: String(input.time_range || config.default_time_range) as TimeRange,
       data_lines: String(input.data_lines || config.default_manual_data_lines) as DataLines,
       trigger_type: "manual",
+    });
+    return json(response, 202, { job_id: job.id });
+  }
+  if (request.method === "POST" && url.pathname === "/api/operations/scan") {
+    const input = await body(request);
+    const job = startOperationsJob({
+      target_region: String(input.target_region || config.default_operations_target_region) as TargetRegion,
+      time_range: String(input.time_range || config.default_operations_time_range) as TimeRange,
+      trigger_type: "manual",
+      force_refresh: Boolean(input.force_refresh),
     });
     return json(response, 202, { job_id: job.id });
   }
@@ -207,18 +273,32 @@ const server = http.createServer(async (request, response) => {
 });
 
 function scheduledTick() {
-  if (!config.schedule_enabled || activeScan) return;
+  if (activeScan) return;
   const now = new Date();
   const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  if (now.getHours() !== config.schedule_hour || now.getMinutes() !== config.schedule_minute) return;
-  if (lastScheduledDate === date) return;
-  lastScheduledDate = date;
-  startJob({
-    target_region: config.default_target_region,
-    time_range: config.default_time_range,
-    data_lines: config.default_schedule_data_lines,
-    trigger_type: "schedule",
-  });
+  if (config.schedule_enabled
+    && now.getHours() === config.schedule_hour && now.getMinutes() === config.schedule_minute
+    && lastScheduledDate !== date) {
+    lastScheduledDate = date;
+    startJob({
+      target_region: config.default_target_region,
+      time_range: config.default_time_range,
+      data_lines: config.default_schedule_data_lines,
+      trigger_type: "schedule",
+    });
+    return;
+  }
+  if (config.operations_schedule_enabled
+    && now.getHours() === config.operations_schedule_hour
+    && now.getMinutes() === config.operations_schedule_minute
+    && lastOperationsScheduledDate !== date) {
+    lastOperationsScheduledDate = date;
+    startOperationsJob({
+      target_region: config.default_operations_target_region,
+      time_range: config.default_operations_time_range,
+      trigger_type: "schedule",
+    });
+  }
 }
 
 server.listen(config.server_port, config.server_host, () => {
@@ -227,6 +307,11 @@ server.listen(config.server_port, config.server_host, () => {
   console.log(
     `每日定时：${config.schedule_enabled
       ? `${String(config.schedule_hour).padStart(2, "0")}:${String(config.schedule_minute).padStart(2, "0")}`
+      : "已关闭"}`,
+  );
+  console.log(
+    `运营情报定时：${config.operations_schedule_enabled
+      ? `${String(config.operations_schedule_hour).padStart(2, "0")}:${String(config.operations_schedule_minute).padStart(2, "0")}`
       : "已关闭"}`,
   );
 });

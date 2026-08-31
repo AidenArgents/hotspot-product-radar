@@ -1,11 +1,12 @@
 import crypto from "node:crypto";
-import type { BranchResult, RadarConfig, RadarEvent, RuntimeContext } from "./types.ts";
+import type { BranchResult, OperationIntelligence, RadarConfig, RadarEvent, RuntimeContext } from "./types.ts";
 import { fetchJson } from "./http.ts";
 
 const LINE_TITLES = {
   假日: "假日API",
   媒体: "Tavily媒体",
   网页: "网页抓取",
+  运营: "运营情报",
 } as const;
 
 export function buildDingTalkMessage(
@@ -37,11 +38,39 @@ export function buildDingTalkMessage(
     if (event.why_sellable) message += `   💡 ${event.why_sellable.slice(0, 80)}\n`;
     message += "\n";
   });
-  const reportUrl =
-    config.dashboard_url ||
-    `https://docs.google.com/spreadsheets/d/${config.spreadsheet_id}`;
+  const reportUrl = config.product_report_url
+    || `https://docs.google.com/spreadsheets/d/${config.spreadsheet_id}/edit?gid=0`;
   message += "────────────────────────────\n";
   message += `📋 完整报告→ ${reportUrl}`;
+  return message.slice(0, 19000);
+}
+
+export function buildOperationsDingTalkMessage(
+  config: RadarConfig,
+  currentDate: string,
+  targetRegion: string,
+  items: OperationIntelligence[],
+): string {
+  let message = `🧭 运营情报日报 · ${currentDate}\n`;
+  message += `📍 ${targetRegion} | ${items.length}条新增经营影响\n`;
+  message += `════════════════════════════\n\n`;
+  items.slice().sort((a, b) => b.impact_score - a.impact_score).slice(0, 12)
+    .forEach((item, index) => {
+      const marker = item.direction === "利空" ? "⚠️" : item.direction === "利好" ? "📈" : "🔎";
+      const scope = [item.country, item.platform, item.category].filter(Boolean).join("·");
+      message += `${marker} ${index + 1}. 【${scope}】${item.title}\n`;
+      message += `   ${item.direction} | 影响${item.impact_score}分 | ${item.urgency}\n`;
+      if (item.verification_status) message += `   🔐 ${item.verification_status} | ${item.evidence_count ?? 1}个证据来源\n`;
+      message += `   💼 ${item.business_impact.slice(0, 130)}\n`;
+      if (item.recommended_actions?.length) {
+        message += `   ✅ ${item.recommended_actions.slice(0, 2).join("；")}\n`;
+      }
+      message += `   来源：${item.source_name}${item.source_url ? ` ${item.source_url}` : ""}\n\n`;
+    });
+  message += "────────────────────────────\n";
+  const reportUrl = config.operations_report_url
+    || `https://docs.google.com/spreadsheets/d/${config.spreadsheet_id}/edit`;
+  message += `📋 完整情报→ ${reportUrl}`;
   return message.slice(0, 19000);
 }
 
@@ -96,4 +125,3 @@ export async function sendDingTalk(
     }),
   );
 }
-

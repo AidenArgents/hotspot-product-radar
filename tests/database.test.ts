@@ -38,7 +38,10 @@ test("SQLite 单文件完成运行、事件写入与看板查询", async () => {
       date: "2026-08-06",
       stage: "预告期",
       ecommerce_score: 91,
-      products: [{ name: "球迷用品" }],
+      products: [{
+        name_中文: "球迷用品",
+        price_range_当地货币: "100-500 MXN",
+      }] as any,
     }],
     top10_events: [],
     executions: [],
@@ -55,6 +58,11 @@ test("SQLite 单文件完成运行、事件写入与看板查询", async () => {
   const queried = await queryEvents(config, { region: "拉美", min_score: 80 });
   assert.equal(queried.total, 1);
   assert.equal(queried.items[0]?.event_name, "世界杯测试事件");
-  assert.deepEqual(queried.items[0]?.products, [{ name: "球迷用品" }]);
+  assert.deepEqual(queried.items[0]?.products, [{
+    name_中文: "球迷用品",
+    price_range_当地货币: "100-500 MXN",
+    name: "球迷用品",
+    price_range: "100-500 MXN",
+  }]);
   fs.rmSync(temp, { recursive: true, force: true });
 });

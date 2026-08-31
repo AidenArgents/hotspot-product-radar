@@ -12,11 +12,13 @@ import {
   recordNotification,
   recordSports,
   startRun,
+  insertEvidenceItems,
   type RadarDatabase,
 } from "./database.ts";
 import { buildDingTalkMessage, sendDingTalk } from "./dingtalk.ts";
 import { appendSheetEvents, readSheetHistory } from "./google_sheets.ts";
-import { makeRunId, todayIso } from "./lib.ts";
+import { countriesForTarget, makeRunId, todayIso } from "./lib.ts";
+import { extractEvidence } from "./evidence.ts";
 import type {
   BranchResult,
   DataLines,
@@ -29,7 +31,6 @@ import type {
 
 function validateConfig(config: RadarConfig): void {
   const required: Array<keyof RadarConfig> = [
-    "gemini_api_key",
     "tavily_api_key",
     "database_file",
     "dingtalk_token_1",
@@ -38,6 +39,9 @@ function validateConfig(config: RadarConfig): void {
     "dingtalk_secret_2",
   ];
   const missing = required.filter((key) => !config[key]);
+  if (!config.gemini_api_key && !config.gemini_api_key_2) {
+    missing.unshift("gemini_api_key");
+  }
   if (missing.length) throw new Error(`radar_config 缺少字段：${missing.join(", ")}`);
 }
 
@@ -144,6 +148,7 @@ export async function runScan(
   input: ScanInput,
   syncGoogleSheets = true,
   sendNotifications = true,
+  onProgress?: (msg: string) => void,
 ): Promise<{
   run_id: string;
   status: "success" | "partial";
@@ -152,6 +157,10 @@ export async function runScan(
   branches: Array<{ line: string; events: number; analysis: string }>;
 }> {
   validateConfig(config);
+  const countries = countriesForTarget(input.target_region, config.enabled_countries);
+  if (!countries.length) {
+    throw new Error(`“${input.target_region}”范围内没有启用的国家，请先在系统设置中勾选`);
+  }
   const startedAt = new Date();
   const runId = makeRunId(startedAt);
   const sql = connectDatabase(config);
@@ -171,6 +180,7 @@ export async function runScan(
       run_id: runId,
       current_date: todayIso(startedAt),
       history_ids: [...new Set([...databaseHistory, ...sheetHistory])],
+      onProgress,
     };
 
     // 三条线路保持独立并发；每条线路内部仍遵循原来的站点/国家边界。
@@ -179,6 +189,9 @@ export async function runScan(
       collectMedia(config, context),
       collectWeb(config, context),
     ]);
+    const sharedEvidence = extractEvidence(collected);
+    await insertEvidenceItems(sql, sharedEvidence);
+    onProgress?.(`已保存${sharedEvidence.length}条可复用新闻证据`);
     const persisted = await Promise.all(
       collected.map((branch) =>
         persistAndDeliverBranch(
@@ -236,5 +249,5 @@ export async function main(
         : config.default_manual_data_lines),
     trigger_type,
   };
-  return runScan(config, input, sync_google_sheets, send_notifications);
+  return runScan(config, input, sync_google_sheets, send_notifications, (msg) => console.log(`[Progress] ${msg}`));
 }

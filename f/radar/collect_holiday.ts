@@ -1,6 +1,6 @@
 import { SOURCE_CATALOG } from "./source_catalog.ts";
 import { callGemini } from "./gemini.ts";
-import { fetchJson } from "./http.ts";
+import { fetchCountryHolidays } from "./holidays.ts";
 import {
   countriesForTarget,
   dedupeEvents,
@@ -16,12 +16,6 @@ import type {
   RuntimeContext,
   SourceExecutionRecord,
 } from "./types.ts";
-
-interface HolidayRecord {
-  date: string;
-  localName: string;
-  name: string;
-}
 
 export async function collectHoliday(
   config: RadarConfig,
@@ -45,45 +39,20 @@ export async function collectHoliday(
     };
   }
 
-  const countries = countriesForTarget(context.target_region);
+  const countries = countriesForTarget(context.target_region, config.enabled_countries);
   const runs = await mapLimit(
     countries,
     config.country_concurrency,
     async (countryName) => {
-      const country = (SOURCE_CATALOG.countries as Record<string, CountryConfig>)[countryName];
+      const country = (SOURCE_CATALOG.countries as unknown as Record<string, CountryConfig>)[countryName];
       const executions: SourceExecutionRecord[] = [];
       const events: RadarEvent[] = [];
       if (!country) return { countryName, events, executions, status: `${countryName}: 0` };
 
-      let holidays: HolidayRecord[] = [];
-      const holidayKey = `holiday:nager:2026:${country.code}`;
-      try {
-        holidays = await fetchJson<HolidayRecord[]>(
-          `https://date.nager.at/api/v3/PublicHolidays/2026/${country.code}`,
-          { timeoutMs: 10000, retries: 1 },
-        );
-        executions.push({
-          source_line: "假日",
-          source_kind: "nager",
-          country: countryName,
-          source_name: "Nager.Date",
-          request_key: holidayKey,
-          status: "success",
-          item_count: holidays.length,
-          response_payload: holidays,
-        });
-      } catch (error) {
-        executions.push({
-          source_line: "假日",
-          source_kind: "nager",
-          country: countryName,
-          source_name: "Nager.Date",
-          request_key: holidayKey,
-          status: "failed",
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return { countryName, events, executions, status: `${countryName}: 0` };
-      }
+      context.onProgress?.(`正在收集官方假日: ${countryName}`);
+      const holidayResult = await fetchCountryHolidays(config, context, countryName, country, "假日");
+      const holidays = holidayResult.holidays;
+      executions.push(...holidayResult.executions);
 
       const { start, end } = timeWindow(context.current_date, context.time_range);
       const results = holidays
@@ -102,7 +71,7 @@ export async function collectHoliday(
       const prompt = `你是跨境电商选品专家。今天：${context.current_date}，时间范围：${context.time_range}
 国家：${countryName}  货币：${country.currency}  地区：${country.region}
 
-数据来源：假日API
+数据来源：Nager.Date + 泰国/马来西亚官方年度假日兜底表
 规则：不卖服装鞋类！所有内容用中文。已记录ID(去重): ${context.history_ids.join(",").substring(0, 1000)}
 
 对每个有电商价值的假日事件输出：event_id, event_name(中文), event_type, country, region, currency, date, stage(预告期/进行中/已过/节后余温), source("假日API"), ecommerce_score(0-100), products(3个,含name中文/category/price_range当地货币/keywords_en[]/keywords_local[]), best_listing_time(中文), why_sellable(中文)
@@ -115,6 +84,7 @@ export async function collectHoliday(
 ${results.join("\n")}`;
 
       const geminiKey = `holiday:gemini:${country.code}`;
+      context.onProgress?.(`正在通过 Gemini 智能分析假日价值: ${countryName}`);
       try {
         const response = await callGemini(config, prompt);
         for (const event of response.events) {
@@ -173,4 +143,3 @@ ${results.join("\n")}`;
 export async function main(config: RadarConfig, context: RuntimeContext) {
   return collectHoliday(config, context);
 }
-

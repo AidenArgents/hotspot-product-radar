@@ -24,32 +24,8 @@ interface HolidayRecord {
   name: string;
 }
 
-interface TavilyResponse {
-  answer?: string;
-  results?: Array<{ title?: string; content?: string; url?: string; score?: number }>;
-}
+import { searchWeb, SearchResponse } from "./web_search.ts";
 
-async function tavilySearch(
-  config: RadarConfig,
-  query: string,
-  domain: string,
-  maxResults: number,
-): Promise<TavilyResponse> {
-  return fetchJson<TavilyResponse>("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: config.tavily_api_key,
-      query,
-      search_depth: "basic",
-      max_results: maxResults,
-      include_answer: true,
-      include_domains: [domain],
-    }),
-    timeoutMs: config.request_timeout_ms,
-    retries: 1,
-  });
-}
 
 export async function collectMedia(
   config: RadarConfig,
@@ -132,7 +108,7 @@ export async function collectMedia(
             context.time_range || "本周",
           );
           try {
-            const response = await tavilySearch(config, query, domain, 5);
+            const response = await searchWeb(config, { query, domain, maxResults: 5, mode: "general" });
             const lines: string[] = [];
             if (response.answer) lines.push(response.answer);
             for (const result of response.results ?? []) {
@@ -256,7 +232,7 @@ ${regionText.slice(0, 15000)}`;
         context.time_range || "本周",
       );
       try {
-        const response = await tavilySearch(config, query, domain, 3);
+        const response = await searchWeb(config, { query, domain, maxResults: 3, mode: "general" });
         return {
           result: {
             source_name: domain,

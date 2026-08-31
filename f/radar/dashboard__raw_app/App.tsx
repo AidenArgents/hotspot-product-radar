@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { backend, backendAsync, waitJob } from "./api";
 import SettingsPanel, { type SettingsPanelHandle } from "./SettingsPanel";
+import OperationsPanel, { type OperationsPanelHandle } from "./OperationsPanel";
 
 type Product = {
   name?: string;
@@ -42,6 +43,7 @@ type RunItem = {
 type QueryResult = {
   items: EventItem[];
   total: number;
+  stats?: { high: number; countries: number };
   facets?: { regions?: string[]; countries?: string[]; stages?: string[] };
 };
 
@@ -52,16 +54,25 @@ const initialFilters = {
   stage: "",
   min_score: 0,
   search: "",
+  date_range: "7d",
+  sort_by: "event_date",
+  sort_order: "desc",
 };
 
 function formatTime(value?: string) {
   if (!value) return "—";
+  // Convert SQLite timestamp (UTC) to a valid ISO string so the browser localizes it
+  const dateStr = value.includes("Z") ? value : value.replace(" ", "T") + "Z";
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(new Date(dateStr));
+}
+
+function namedProducts(products?: Product[]) {
+  return (products ?? []).filter((product) => product.name?.trim());
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -70,16 +81,21 @@ function StatusPill({ status }: { status: string }) {
 }
 
 export default function App() {
+  const [module, setModule] = useState<"product" | "operations">("product");
   const [filters, setFilters] = useState(initialFilters);
   const [result, setResult] = useState<QueryResult>({ items: [], total: 0 });
   const [runs, setRuns] = useState<RunItem[]>([]);
   const [selected, setSelected] = useState<EventItem | null>(null);
   const [runDetail, setRunDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"events" | "runs" | "settings">("events");
+  const [operationsTab, setOperationsTab] = useState<"intelligence" | "runs" | "settings">("intelligence");
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState("扫描运行中，请保持页面打开...");
   const [scanForm, setScanForm] = useState({
     target_region: "全部",
     time_range: "未来3个月",
@@ -88,17 +104,34 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const settingsRef = useRef<SettingsPanelHandle>(null);
+  const operationsRef = useRef<OperationsPanelHandle>(null);
   const refreshNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const buildQueryParams = (offset: number) => {
+    const queryParams: any = { ...filters, limit: 20, offset };
+    if (filters.date_range) {
+      const d = new Date();
+      if (filters.date_range === "7d") d.setDate(d.getDate() - 7);
+      else if (filters.date_range === "30d") d.setDate(d.getDate() - 30);
+      else if (filters.date_range === "90d") d.setDate(d.getDate() - 90);
+      if (filters.date_range !== "all") {
+        queryParams.date_from = d.toISOString().split("T")[0];
+      }
+    }
+    return queryParams;
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const [eventsData, runsData] = await Promise.all([
-        backend.query_events({ ...filters, limit: 200, offset: 0 }),
+        backend.query_events(buildQueryParams(0)),
         backend.query_runs({ limit: 30 }),
       ]);
-      setResult(eventsData as QueryResult);
+      const res = eventsData as QueryResult;
+      setResult(res);
+      setHasMore(res.items.length < res.total);
       setRuns(runsData as RunItem[]);
       return true;
     } catch (cause) {
@@ -108,6 +141,23 @@ export default function App() {
       setLoading(false);
     }
   }, [filters]);
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const eventsData = await backend.query_events(buildQueryParams(result.items.length)) as QueryResult;
+      setResult({
+        ...eventsData,
+        items: [...result.items, ...eventsData.items],
+      });
+      setHasMore(result.items.length + eventsData.items.length < eventsData.total);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     const timer = setTimeout(load, 180);
@@ -119,8 +169,8 @@ export default function App() {
   }, []);
 
   const stats = useMemo(() => {
-    const high = result.items.filter((item) => item.ecommerce_score >= 80).length;
-    const countries = new Set(result.items.map((item) => item.country).filter(Boolean)).size;
+    const high = result.stats?.high ?? result.items.filter((item) => item.ecommerce_score >= 80).length;
+    const countries = result.stats?.countries ?? new Set(result.items.map((item) => item.country).filter(Boolean)).size;
     const latest = runs[0];
     return { high, countries, latest };
   }, [result.items, runs]);
@@ -137,10 +187,11 @@ export default function App() {
 
   async function startScan() {
     setScanning(true);
+    setScanProgress("正在初始化...");
     setError("");
     try {
       const jobId = await backendAsync.run_scan(scanForm);
-      await waitJob(jobId);
+      await waitJob(jobId, setScanProgress);
       setScanOpen(false);
       await load();
     } catch (cause) {
@@ -164,6 +215,15 @@ export default function App() {
     setScanOpen(true);
   }
 
+  function openOperationsScan() {
+    if (operationsTab !== "settings") {
+      operationsRef.current?.openScan();
+      return;
+    }
+    setOperationsTab("intelligence");
+    window.setTimeout(() => operationsRef.current?.openScan(), 0);
+  }
+
   async function refreshCurrentPage() {
     if (refreshing) return;
     const minimumProgressTime = new Promise((resolve) => setTimeout(resolve, 450));
@@ -174,7 +234,15 @@ export default function App() {
     let succeeded = false;
     let pageName = "当前页面";
     try {
-      if (tab === "settings") {
+      if (module === "operations") {
+        if (operationsTab === "settings") {
+          pageName = "运营情报设置";
+          succeeded = await (settingsRef.current?.refresh() ?? Promise.resolve(false));
+        } else {
+          pageName = operationsTab === "runs" ? "运营运行记录" : "运营情报库";
+          succeeded = await (operationsRef.current?.refresh() ?? Promise.resolve(false));
+        }
+      } else if (tab === "settings") {
         pageName = "系统设置";
         succeeded = await (settingsRef.current?.refresh() ?? Promise.resolve(false));
       } else if (tab === "runs") {
@@ -185,8 +253,10 @@ export default function App() {
       } else {
         pageName = "机会库";
         setLoading(true);
-        const eventsData = await backend.query_events({ ...filters, limit: 200, offset: 0 });
-        setResult(eventsData as QueryResult);
+        const eventsData = await backend.query_events(buildQueryParams(0));
+        const res = eventsData as QueryResult;
+        setResult(res);
+        setHasMore(res.items.length < res.total);
         succeeded = true;
       }
     } catch (cause) {
@@ -213,31 +283,45 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <aside className="module-rail">
+        <div className="module-rail-mark">R</div>
+        <button className={module === "product" ? "active" : ""} onClick={() => setModule("product")}><span>◇</span><b>产品情报</b></button>
+        <button className={module === "operations" ? "active" : ""} onClick={() => setModule("operations")}><span>▦</span><b>运营情报</b></button>
+      </aside>
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">R</span>
           <div>
-            <strong>热点选品雷达</strong>
-            <small>SEA · LATAM intelligence</small>
+            <strong>{module === "product" ? "产品情报" : "运营情报"}</strong>
+            <small>SEA · LATAM INTELLIGENCE</small>
           </div>
         </div>
-        <nav>
+        {module === "product" ? <nav>
           <button className={tab === "events" ? "nav-active" : ""} onClick={() => setTab("events")}>机会库</button>
           <button className={tab === "runs" ? "nav-active" : ""} onClick={() => setTab("runs")}>运行记录</button>
           <button className={tab === "settings" ? "nav-active" : ""} onClick={() => setTab("settings")}>系统设置</button>
-        </nav>
+        </nav> : <nav>
+          <button className={operationsTab === "intelligence" ? "nav-active" : ""} onClick={() => setOperationsTab("intelligence")}>情报库</button>
+          <button className={operationsTab === "runs" ? "nav-active" : ""} onClick={() => setOperationsTab("runs")}>运行记录</button>
+          <button className={operationsTab === "settings" ? "nav-active" : ""} onClick={() => setOperationsTab("settings")}>系统设置</button>
+        </nav>}
         <div className="header-actions">
           <button className="ghost refresh-button" onClick={refreshCurrentPage} disabled={refreshing} aria-busy={refreshing}>
             {refreshing && <span className="refresh-spinner">↻</span>}
             {refreshing ? "刷新中…" : "刷新"}
           </button>
-          <button className="primary" onClick={openScan}>＋ 立即扫描</button>
+          <button className="primary" onClick={module === "product" ? openScan : openOperationsScan}>＋ 立即扫描</button>
         </div>
       </header>
 
       {refreshNotice && <div className={`refresh-toast refresh-toast-${refreshNotice.kind}`} role="status" aria-live="polite">{refreshNotice.text}</div>}
 
       <main>
+        {module === "operations" ? (
+          operationsTab === "settings"
+            ? <SettingsPanel ref={settingsRef} />
+            : <OperationsPanel ref={operationsRef} view={operationsTab} />
+        ) : <>
         <section className="hero">
           <div>
             <p className="eyebrow">PRODUCT SIGNALS / V8</p>
@@ -276,6 +360,20 @@ export default function App() {
               <select value={filters.min_score} onChange={(e) => setFilters({ ...filters, min_score: Number(e.target.value) })}>
                 <option value={0}>全部评分</option><option value={60}>60 分以上</option><option value={80}>80 分以上</option>
               </select>
+              <select value={filters.date_range} onChange={(e) => setFilters({ ...filters, date_range: e.target.value })}>
+                <option value="all">所有时间</option><option value="7d">最近7天</option><option value="30d">最近30天</option><option value="90d">最近90天</option>
+              </select>
+              <select value={`${filters.sort_by}-${filters.sort_order}`} onChange={(e) => {
+                const [sort_by, sort_order] = e.target.value.split("-");
+                setFilters({ ...filters, sort_by, sort_order });
+              }}>
+                <option value="event_date-desc">事件时间倒序</option>
+                <option value="event_date-asc">事件时间正序</option>
+                <option value="first_seen_at-desc">拉取时间倒序</option>
+                <option value="first_seen_at-asc">拉取时间正序</option>
+                <option value="ecommerce_score-desc">分数倒序</option>
+                <option value="ecommerce_score-asc">分数正序</option>
+              </select>
               <button className="clear" onClick={() => setFilters(initialFilters)}>清除</button>
             </section>
 
@@ -291,14 +389,20 @@ export default function App() {
                     <div className="event-main">
                       <div className="event-heading"><h3>{item.event_name}</h3><span className={`line line-${item.source_line}`}>{item.source_line}</span></div>
                       <p>{item.why_sellable || "暂无推荐理由"}</p>
-                      <div className="meta"><span>◉ {item.country || "未知"}</span><span>◷ {item.date || "待定"}</span><span>{item.stage || "待分析"}</span><span>{item.source}</span></div>
+                      <div className="meta"><span>◉ {item.country || "未知"}</span><span>事件: {item.date || "待定"}</span><span>拉取: {formatTime(item.first_seen_at)}</span><span>{item.stage || "待分析"}</span><span>{item.source}</span></div>
                     </div>
                     <div className="products-preview">
-                      {(item.products ?? []).slice(0, 2).map((product, index) => <span key={`${product.name}-${index}`}>{product.name}</span>)}
+                      {namedProducts(item.products).slice(0, 3).map((product, index) => <span key={`${product.name}-${index}`}>{product.name}</span>)}
+                      {namedProducts(item.products).length === 0 && <span>暂无有效选品</span>}
                     </div>
                     <span className="chevron">›</span>
                   </button>
                 ))}
+                {hasMore && (
+                  <button className="load-more ghost" onClick={loadMore} disabled={loadingMore} style={{ width: "100%", padding: "16px", marginTop: "8px", border: "1px dashed var(--border)" }}>
+                    {loadingMore ? "正在加载..." : "加载更多"}
+                  </button>
+                )}
               </div>
             </section>
           </>
@@ -339,9 +443,10 @@ export default function App() {
         ) : (
           <SettingsPanel ref={settingsRef} />
         )}
+        </>}
       </main>
 
-      {selected && (
+      {module === "product" && selected && (
         <div className="modal-backdrop" onMouseDown={() => setSelected(null)}>
           <aside className="drawer" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setSelected(null)}>×</button>
@@ -351,13 +456,13 @@ export default function App() {
             <div className="meta large"><span>📍 {selected.country}</span><span className="divider">|</span><span>📅 {selected.date}</span><span className="divider">|</span><span>{selected.stage}</span></div>
             <div className="insight"><span>💡 为什么值得卖</span><p>{selected.why_sellable || "暂无"}</p></div>
             <h3 className="section-head">🛒 推荐选品</h3>
-            <div className="product-cards">{(selected.products ?? []).map((product, index) => <article key={`${product.name}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><div className="product-info-rich"><b>{product.name} <em>({product.category})</em></b><div className="product-price"><span>💰</span> {product.price_range}</div><div className="product-keys"><span>🔑</span> {[...(product.keywords_en ?? []), ...(product.keywords_local ?? [])].filter(Boolean).join(", ")}</div></div></article>)}</div>
+            <div className="product-cards">{namedProducts(selected.products).map((product, index) => <article key={`${product.name}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><div className="product-info-rich"><b>{product.name} <em>({product.category})</em></b><div className="product-price"><span>💰</span> {product.price_range}</div><div className="product-keys"><span>🔑</span> {[...(product.keywords_en ?? []), ...(product.keywords_local ?? [])].filter(Boolean).join(", ")}</div></div></article>)}{namedProducts(selected.products).length === 0 && <div className="empty">暂无有效选品</div>}</div>
             <div className="listing-time"><span>⏰ 最佳上架时间</span><b>{selected.best_listing_time || "待分析"}</b></div>
           </aside>
         </div>
       )}
 
-      {scanOpen && (
+      {module === "product" && scanOpen && (
         <div className="modal-backdrop" onMouseDown={() => !scanning && setScanOpen(false)}>
           <section className="scan-modal" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setScanOpen(false)} disabled={scanning}>×</button>
@@ -365,7 +470,7 @@ export default function App() {
             <label>目标区域<select value={scanForm.target_region} onChange={(e) => setScanForm({ ...scanForm, target_region: e.target.value })}><option>全部</option><option>东南亚</option><option>拉美</option></select></label>
             <label>时间范围<select value={scanForm.time_range} onChange={(e) => setScanForm({ ...scanForm, time_range: e.target.value })}><option>今天</option><option>近3天</option><option>本周</option><option>本月</option><option>未来3个月</option></select></label>
             <label>数据线路<select value={scanForm.data_lines} onChange={(e) => setScanForm({ ...scanForm, data_lines: e.target.value })}><option>全部</option><option>媒体+网页</option><option>仅假日</option><option>仅媒体</option><option>仅网页</option><option>假日+网页</option><option>假日+媒体</option></select></label>
-            <button className="primary scan-submit" disabled={scanning} onClick={startScan}>{scanning ? "扫描运行中，请保持页面打开…" : "开始扫描"}</button>
+            <button className="primary scan-submit" disabled={scanning} onClick={startScan}>{scanning ? scanProgress : "开始扫描"}</button>
           </section>
         </div>
       )}

@@ -8,6 +8,7 @@
     "dev": "tsx watch server.ts",
     "start": "tsx server.ts",
     "scan": "tsx cli.ts scan",
+    "scan:operations": "tsx cli.ts operations",
     "build:dashboard": "npm --prefix f/radar/dashboard__raw_app run build",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts",

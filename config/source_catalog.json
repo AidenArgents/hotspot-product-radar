@@ -51,8 +51,8 @@
           "site:nationthailand.com Thailand 2026 ${config.time_range} news breaking disaster royal celebrity festival event trending"
         ],
         [
-          "thaipbsworld.com",
-          "site:thaipbsworld.com Thailand 2026 ${config.time_range} news breaking disaster royal celebrity festival event"
+          "world.thaipbs.or.th",
+          "site:world.thaipbs.or.th Thailand ${current_year} ${config.time_range} news breaking disaster royal celebrity festival event"
         ]
       ]
     },
@@ -137,10 +137,6 @@
         [
           "channelnewsasia.com",
           "site:channelnewsasia.com Singapore 2026 ${config.time_range} news breaking celebrity trending festival event F1 Grand Prix"
-        ],
-        [
-          "todayonline.com",
-          "site:todayonline.com Singapore 2026 ${config.time_range} news breaking celebrity trending festival event"
         ]
       ]
     },
@@ -423,15 +419,468 @@
   "rss_feeds": [
     {
       "name": "环球网-国际",
-      "url": "https://rsshub.rssforever.com/huanqiu/news/world?limit=100"
+      "url": "https://rsshub.rssforever.com/huanqiu/news/world?limit=100",
+      "max_age_days": 14
     },
     {
       "name": "环球网-军事",
-      "url": "https://rsshub.rssforever.com/huanqiu/news/mil?limit=100"
+      "url": "https://rsshub.rssforever.com/huanqiu/news/mil?limit=100",
+      "max_age_days": 14
     },
     {
       "name": "参考消息-国际",
-      "url": "https://rsshub.rssforever.com/cankaoxiaoxi/column/guoji?limit=100"
+      "url": "https://rsshub.rssforever.com/cankaoxiaoxi/column/guoji?limit=100",
+      "max_age_days": 14
+    },
+    {
+      "name": "ANTARA-印尼国家通讯社",
+      "country": "印尼",
+      "url": "https://en.antaranews.com/rss/news.xml",
+      "max_age_days": 14,
+      "official": true
+    },
+    {
+      "name": "BERNAMA-马来西亚国家通讯社",
+      "country": "马来西亚",
+      "url": "https://www.bernama.com/en/rssfeed.php",
+      "max_age_days": 14,
+      "official": true
+    },
+    {
+      "name": "CNA-新加坡",
+      "country": "新加坡",
+      "url": "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416",
+      "max_age_days": 14,
+      "official": true
+    },
+    {
+      "name": "Agência Brasil-巴西国家通讯社",
+      "country": "巴西",
+      "url": "https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml",
+      "max_age_days": 14,
+      "official": true
+    }
+  ],
+  "official_event_sources": [
+    {
+      "country": "越南",
+      "name": "越南国家旅游局活动日历",
+      "domain": "vietnam.travel",
+      "url": "https://www.vietnam.travel/event",
+      "allowed_path_fragments": ["/event"],
+      "query": "site:vietnam.travel/event Vietnam ${current_year} festivals events ${config.time_range} ${start_date} ${end_date}"
+    },
+    {
+      "country": "泰国",
+      "name": "泰国国家旅游局节庆活动",
+      "domain": "tourismthailand.org",
+      "url": "https://www.tourismthailand.org/Experiences/8",
+      "allowed_path_fragments": ["/experiences/8", "/events-and-festivals"],
+      "query": "site:tourismthailand.org/Experiences/8 Thailand ${current_year} events festivals ${config.time_range} ${start_date} ${end_date}"
+    },
+    {
+      "country": "印尼",
+      "name": "印度尼西亚旅游活动日历",
+      "domain": "indonesia.travel",
+      "url": "https://www.indonesia.travel/id/en/experience",
+      "allowed_path_fragments": ["/events/"],
+      "query": "site:indonesia.travel Indonesia ${current_year} festival event calendar ${start_date} ${end_date}"
+    },
+    {
+      "country": "菲律宾",
+      "name": "菲律宾国家旅游节庆活动",
+      "domain": "philippines.travel",
+      "url": "https://philippines.travel/activities",
+      "allowed_path_fragments": ["/events/", "/activities/"],
+      "query": "site:philippines.travel/events Philippines ${current_year} festival fiesta ${config.time_range} ${start_date} ${end_date}"
+    },
+    {
+      "country": "马来西亚",
+      "name": "马来西亚旅游局活动日历",
+      "domain": "tourism.gov.my",
+      "url": "https://www.tourism.gov.my/events/calendar",
+      "allowed_path_fragments": ["/events"],
+      "query": "site:tourism.gov.my/events Malaysia ${current_year} upcoming consumer festival event ${config.time_range} ${start_date} ${end_date}"
+    },
+    {
+      "country": "新加坡",
+      "name": "新加坡旅游局活动日历",
+      "domain": "visitsingapore.com",
+      "url": "https://www.visitsingapore.com/whats-happening/all-happenings/",
+      "allowed_path_fragments": ["/whats-happening/"],
+      "query": "site:visitsingapore.com Singapore Grand Prix Season ${current_year} Mid-Autumn Festival Deepavali National Day Singapore ${current_year}"
+    },
+    {
+      "country": "巴西",
+      "name": "巴西旅游部活动日历",
+      "domain": "turismo.gov.br",
+      "url": "https://turismo.gov.br/agenda-eventos/views/calendario.php",
+      "allowed_path_fragments": ["/agenda-eventos/"],
+      "query": "site:turismo.gov.br Brasil ${current_year} evento festival calendario ${start_date} ${end_date}"
+    },
+    {
+      "country": "墨西哥",
+      "name": "墨西哥文化部全国活动日历",
+      "domain": "mexicoescultura.com",
+      "url": "https://mexicoescultura.com/",
+      "allowed_path_fragments": ["/detalle/", "/temas/"],
+      "query": "site:mexicoescultura.com Mexico ${current_year} festival feria cultura popular eventos ${config.time_range} ${start_date} ${end_date}"
+    }
+  ],
+  "platform_official_sources": [
+    {
+      "country": "越南",
+      "platform": "Shopee",
+      "name": "Shopee越南帮助中心",
+      "domain": "help.shopee.vn",
+      "query": "site:help.shopee.vn ${current_year} seller commission fee transaction payment logistics policy update"
+    },
+    {
+      "country": "越南",
+      "platform": "Lazada",
+      "name": "Lazada越南卖家中心",
+      "domain": "sellercenter.lazada.vn",
+      "query": "site:sellercenter.lazada.vn ${current_year} seller commission fee payment logistics policy update"
+    },
+    {
+      "country": "越南",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop越南卖家大学",
+      "domain": "seller-vn.tiktok.com",
+      "query": "site:seller-vn.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "泰国",
+      "platform": "Shopee",
+      "name": "Shopee泰国帮助中心",
+      "domain": "help.shopee.co.th",
+      "query": "site:help.shopee.co.th ${current_year} seller commission fee transaction payment logistics policy update"
+    },
+    {
+      "country": "泰国",
+      "platform": "Lazada",
+      "name": "Lazada泰国卖家中心",
+      "domain": "sellercenter.lazada.co.th",
+      "query": "site:sellercenter.lazada.co.th ${current_year} seller commission fee payment logistics policy update"
+    },
+    {
+      "country": "泰国",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop泰国卖家大学",
+      "domain": "seller-th.tiktok.com",
+      "query": "site:seller-th.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "印尼",
+      "platform": "Shopee",
+      "name": "Shopee印尼帮助中心",
+      "domain": "help.shopee.co.id",
+      "query": "site:help.shopee.co.id ${current_year} seller commission fee transaction payment logistics policy update"
+    },
+    {
+      "country": "印尼",
+      "platform": "Lazada",
+      "name": "Lazada印尼卖家中心",
+      "domain": "sellercenter.lazada.co.id",
+      "query": "site:sellercenter.lazada.co.id ${current_year} seller commission fee payment logistics policy update"
+    },
+    {
+      "country": "印尼",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop印尼卖家大学",
+      "domain": "seller-id.tiktok.com",
+      "query": "site:seller-id.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "菲律宾",
+      "platform": "Shopee",
+      "name": "Shopee菲律宾帮助中心",
+      "domain": "help.shopee.ph",
+      "query": "site:help.shopee.ph ${current_year} seller commission fee transaction payment logistics policy update"
+    },
+    {
+      "country": "菲律宾",
+      "platform": "Lazada",
+      "name": "Lazada菲律宾卖家中心",
+      "domain": "sellercenter.lazada.com.ph",
+      "query": "site:sellercenter.lazada.com.ph ${current_year} seller commission fee payment logistics policy update"
+    },
+    {
+      "country": "菲律宾",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop菲律宾卖家大学",
+      "domain": "seller-ph.tiktok.com",
+      "query": "site:seller-ph.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "马来西亚",
+      "platform": "Shopee",
+      "name": "Shopee马来西亚帮助中心",
+      "domain": "help.shopee.com.my",
+      "query": "site:help.shopee.com.my ${current_year} seller commission fee transaction payment logistics policy update"
+    },
+    {
+      "country": "马来西亚",
+      "platform": "Lazada",
+      "name": "Lazada马来西亚卖家中心",
+      "domain": "sellercenter.lazada.com.my",
+      "query": "site:sellercenter.lazada.com.my ${current_year} seller commission fee payment logistics policy update"
+    },
+    {
+      "country": "马来西亚",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop马来西亚卖家大学",
+      "domain": "seller-my.tiktok.com",
+      "query": "site:seller-my.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "新加坡",
+      "platform": "Shopee",
+      "name": "Shopee新加坡帮助中心",
+      "domain": "help.shopee.sg",
+      "query": "site:help.shopee.sg ${current_year} seller commission fee transaction payment logistics policy update"
+    },
+    {
+      "country": "新加坡",
+      "platform": "Lazada",
+      "name": "Lazada新加坡卖家中心",
+      "domain": "sellercenter.lazada.sg",
+      "query": "site:sellercenter.lazada.sg ${current_year} seller commission fee payment logistics policy update"
+    },
+    {
+      "country": "新加坡",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop新加坡卖家大学",
+      "domain": "seller-sg.tiktok.com",
+      "query": "site:seller-sg.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "巴西",
+      "platform": "Shopee",
+      "name": "Shopee巴西帮助中心",
+      "domain": "help.shopee.com.br",
+      "query": "site:help.shopee.com.br ${current_year} vendedor comissao tarifa pagamento logistica politica atualizacao"
+    },
+    {
+      "country": "巴西",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop巴西卖家大学",
+      "domain": "seller-br.tiktok.com",
+      "query": "site:seller-br.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "巴西",
+      "platform": "Mercado Libre",
+      "name": "Mercado Livre巴西卖家中心",
+      "domain": "vendedores.mercadolivre.com.br",
+      "query": "site:vendedores.mercadolivre.com.br ${current_year} custos tarifas pagamentos envios politica vendedores atualizacao"
+    },
+    {
+      "country": "墨西哥",
+      "platform": "Shopee",
+      "name": "Shopee墨西哥帮助中心",
+      "domain": "help.shopee.com.mx",
+      "query": "site:help.shopee.com.mx ${current_year} vendedor comision tarifa pago logistica politica actualizacion"
+    },
+    {
+      "country": "墨西哥",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop墨西哥卖家大学",
+      "domain": "seller-mx.tiktok.com",
+      "query": "site:seller-mx.tiktok.com/university ${current_year} commission fee transaction payment logistics seller policy update"
+    },
+    {
+      "country": "墨西哥",
+      "platform": "Mercado Libre",
+      "name": "Mercado Libre墨西哥卖家中心",
+      "domain": "vendedores.mercadolibre.com.mx",
+      "query": "site:vendedores.mercadolibre.com.mx ${current_year} costos cargos pagos envios politica vendedores actualizacion"
+    }
+  ],
+  "platform_industry_media_sources": [
+    {
+      "name": "亿邦动力",
+      "domain": "ebrun.com",
+      "regions": ["东南亚", "拉美"],
+      "tier": "A",
+      "query": "site:ebrun.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "雨果跨境",
+      "domain": "cifnews.com",
+      "regions": ["东南亚", "拉美"],
+      "tier": "A",
+      "query": "site:cifnews.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "AMZ123",
+      "domain": "amz123.com",
+      "regions": ["东南亚", "拉美"],
+      "tier": "B",
+      "query": "site:amz123.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "TT123",
+      "domain": "tt123.com",
+      "regions": ["东南亚", "拉美"],
+      "tier": "A",
+      "query": "site:tt123.com ${current_year} ${scope_terms} TikTok Shop 佣金 交易费 支付 物流 履约 禁售 卖家政策 规则更新"
+    },
+    {
+      "name": "DNY123",
+      "domain": "dny123.com",
+      "regions": ["东南亚"],
+      "tier": "A",
+      "query": "site:dny123.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "白鲸出海",
+      "domain": "baijing.cn",
+      "regions": ["东南亚", "拉美"],
+      "tier": "A",
+      "query": "site:baijing.cn ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "出海网",
+      "domain": "chwang.com",
+      "regions": ["东南亚", "拉美"],
+      "tier": "A",
+      "query": "site:chwang.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "跨境知道",
+      "domain": "ikjzd.com",
+      "regions": ["东南亚", "拉美"],
+      "tier": "B",
+      "query": "site:ikjzd.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+    },
+    {
+      "name": "Fintech News Malaysia",
+      "domain": "fintechnews.my",
+      "countries": ["马来西亚"],
+      "tier": "A",
+      "query": "site:fintechnews.my ${current_year} Malaysia Shopee Lazada TikTok Shop payment ewallet integration merchant checkout cashback"
+    }
+  ],
+  "operations_official_sources": [
+    {
+      "country": "越南",
+      "name": "越南海关与国家贸易门户",
+      "domain": "customs.gov.vn",
+      "query": "site:customs.gov.vn ${current_year} customs import export tariff tax ecommerce regulation announcement"
+    },
+    {
+      "country": "泰国",
+      "name": "泰国海关",
+      "domain": "customs.go.th",
+      "query": "site:customs.go.th ${current_year} customs import export tariff tax ecommerce regulation announcement"
+    },
+    {
+      "country": "印尼",
+      "name": "印尼海关总署",
+      "domain": "beacukai.go.id",
+      "query": "site:beacukai.go.id ${current_year} bea cukai impor ekspor pajak ecommerce aturan pengumuman"
+    },
+    {
+      "country": "菲律宾",
+      "name": "菲律宾海关局",
+      "domain": "customs.gov.ph",
+      "query": "site:customs.gov.ph ${current_year} customs import ecommerce parcel tariff regulation announcement"
+    },
+    {
+      "country": "马来西亚",
+      "name": "马来西亚皇家海关",
+      "domain": "customs.gov.my",
+      "query": "site:customs.gov.my ${current_year} customs import ecommerce tax tariff regulation announcement"
+    },
+    {
+      "country": "新加坡",
+      "name": "新加坡海关",
+      "domain": "customs.gov.sg",
+      "query": "site:customs.gov.sg ${current_year} customs import ecommerce GST trade regulation news"
+    },
+    {
+      "country": "巴西",
+      "name": "巴西联邦税务局海关与外贸",
+      "domain": "gov.br",
+      "query": "site:gov.br/receitafederal ${current_year} aduana importacao ecommerce imposto regulacao noticia"
+    },
+    {
+      "country": "墨西哥",
+      "name": "墨西哥税务管理局",
+      "domain": "sat.gob.mx",
+      "query": "site:sat.gob.mx ${current_year} aduana importacion comercio electronico impuesto regulacion comunicado"
+    }
+  ],
+  "gdacs": {
+    "name": "GDACS全球灾害预警",
+    "url": "https://www.gdacs.org/xml/rss.xml",
+    "max_age_days": 14,
+    "max_items": 40
+  },
+  "holiday_fallbacks": {
+    "泰国": {
+      "source_name": "泰国央行/泰国政府2026官方假日",
+      "source_url": "https://www.bot.or.th/en/financial-institutions-holiday.html",
+      "years": {
+        "2026": [
+          { "date": "2026-01-01", "localName": "วันขึ้นปีใหม่", "name": "New Year's Day" },
+          { "date": "2026-01-02", "localName": "วันหยุดพิเศษ", "name": "Additional Special Holiday" },
+          { "date": "2026-03-03", "localName": "วันมาฆบูชา", "name": "Makha Bucha Day" },
+          { "date": "2026-04-06", "localName": "วันจักรี", "name": "Chakri Memorial Day" },
+          { "date": "2026-04-13", "localName": "วันสงกรานต์", "name": "Songkran Festival" },
+          { "date": "2026-04-14", "localName": "วันสงกรานต์", "name": "Songkran Festival" },
+          { "date": "2026-04-15", "localName": "วันสงกรานต์", "name": "Songkran Festival" },
+          { "date": "2026-05-01", "localName": "วันแรงงานแห่งชาติ", "name": "National Labour Day" },
+          { "date": "2026-05-04", "localName": "วันฉัตรมงคล", "name": "Coronation Day" },
+          { "date": "2026-06-01", "localName": "ชดเชยวันวิสาขบูชา", "name": "Substitution for Visakha Bucha Day" },
+          { "date": "2026-06-03", "localName": "วันเฉลิมพระชนมพรรษาสมเด็จพระนางเจ้าฯ พระบรมราชินี", "name": "H.M. Queen Suthida's Birthday" },
+          { "date": "2026-07-28", "localName": "วันเฉลิมพระชนมพรรษาพระบาทสมเด็จพระเจ้าอยู่หัว", "name": "H.M. King's Birthday" },
+          { "date": "2026-07-29", "localName": "วันอาสาฬหบูชา", "name": "Asarnha Bucha Day" },
+          { "date": "2026-08-12", "localName": "วันแม่แห่งชาติ", "name": "H.M. Queen Sirikit The Queen Mother's Birthday" },
+          { "date": "2026-10-13", "localName": "วันนวมินทรมหาราช", "name": "King Bhumibol Adulyadej The Great Memorial Day" },
+          { "date": "2026-10-23", "localName": "วันปิยมหาราช", "name": "Chulalongkorn Memorial Day" },
+          { "date": "2026-12-07", "localName": "ชดเชยวันพ่อแห่งชาติ", "name": "Substitution for National Day and Father's Day" },
+          { "date": "2026-12-10", "localName": "วันรัฐธรรมนูญ", "name": "Constitution Day" },
+          { "date": "2026-12-31", "localName": "วันสิ้นปี", "name": "New Year's Eve" }
+        ]
+      }
+    },
+    "马来西亚": {
+      "source_name": "马来西亚总理署2026联邦假日公报",
+      "source_url": "https://www.kabinet.gov.my/storage/2025/08/HKA-2026.pdf",
+      "years": {
+        "2026": [
+          { "date": "2026-02-17", "localName": "Tahun Baru Cina", "name": "Chinese New Year" },
+          { "date": "2026-02-18", "localName": "Tahun Baru Cina Hari Kedua", "name": "Second Day of Chinese New Year" },
+          { "date": "2026-03-21", "localName": "Hari Raya Puasa", "name": "Hari Raya Aidilfitri" },
+          { "date": "2026-03-22", "localName": "Hari Raya Puasa Hari Kedua", "name": "Second Day of Hari Raya Aidilfitri" },
+          { "date": "2026-05-01", "localName": "Hari Pekerja", "name": "Labour Day" },
+          { "date": "2026-05-27", "localName": "Hari Raya Qurban", "name": "Hari Raya Haji" },
+          { "date": "2026-05-31", "localName": "Hari Wesak", "name": "Wesak Day" },
+          { "date": "2026-06-01", "localName": "Hari Keputeraan Rasmi Yang di-Pertuan Agong", "name": "Birthday of the Yang di-Pertuan Agong" },
+          { "date": "2026-06-17", "localName": "Awal Muharam", "name": "Islamic New Year" },
+          { "date": "2026-08-25", "localName": "Maulidur Rasul", "name": "Prophet Muhammad's Birthday" },
+          { "date": "2026-08-31", "localName": "Hari Kebangsaan", "name": "National Day" },
+          { "date": "2026-09-16", "localName": "Hari Malaysia", "name": "Malaysia Day" },
+          { "date": "2026-11-08", "localName": "Hari Deepavali", "name": "Deepavali" },
+          { "date": "2026-12-25", "localName": "Hari Krismas", "name": "Christmas Day" }
+        ]
+      }
+    }
+  },
+  "optional_sources": [
+    {
+      "name": "Mercado Libre Trends API",
+      "countries": ["巴西", "墨西哥"],
+      "status": "等待 Mercado Libre 应用、OAuth 与业务指标权限",
+      "setup_url": "https://developers.mercadolibre.com.ar/en_us/about-our-api/trends"
+    },
+    {
+      "name": "Google Trends API",
+      "countries": ["越南", "泰国", "印尼", "菲律宾", "马来西亚", "新加坡", "巴西", "墨西哥"],
+      "status": "等待 Google Trends API Alpha 访问资格",
+      "setup_url": "https://developers.google.com/search/apis/trends"
     }
   ],
   "google_news_queries": []

@@ -22,13 +22,13 @@ echo.
 if exist "%PROJECT_ROOT%.runtime\node\node.exe" set "PATH=%PROJECT_ROOT%.runtime\node;%PATH%"
 if exist "%PROJECT_ROOT%.runtime\git\cmd\git.exe" set "PATH=%PROJECT_ROOT%.runtime\git\cmd;%PATH%"
 
-call "%PROJECT_ROOT%stop.bat" /quiet
+call "%PROJECT_ROOT%Í£Ö¹.bat" /quiet
 if errorlevel 1 goto failed
 
 if defined NO_BROWSER (
-  call "%PROJECT_ROOT%start.bat" /quiet /nobrowser
+  call "%PROJECT_ROOT%Æô¶¯.bat" /quiet /nobrowser
 ) else (
-  call "%PROJECT_ROOT%start.bat" /quiet
+  call "%PROJECT_ROOT%Æô¶¯.bat" /quiet
 )
 if errorlevel 1 goto failed
 

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Position = 0)]
   [ValidateSet("start", "stop", "restart", "status")]
   [string]$Action = "status"
@@ -18,7 +18,7 @@ if (Test-Path -LiteralPath (Join-Path $portableNodeDirectory "node.exe")) {
 }
 
 if (-not (Test-Path -LiteralPath $configFile -PathType Leaf)) {
-  throw "Configuration is missing: config\radar_config.local.json. Run setup.bat first."
+  throw "Configuration is missing: config\radar_config.local.json. Run 初始化.bat first."
 }
 
 try {
@@ -149,12 +149,12 @@ function Start-Radar {
 
   $nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
   if (-not $nodeCommand) {
-    throw "Node.js is unavailable. Run install.bat first."
+    throw "Node.js is unavailable. Run 安装.bat first."
   }
   $tsx = Join-Path $projectRoot "node_modules\tsx\dist\cli.mjs"
   $server = Join-Path $projectRoot "server.ts"
   if (-not (Test-Path -LiteralPath $tsx -PathType Leaf)) {
-    throw "Project dependencies are missing. Run install.bat first."
+    throw "Project dependencies are missing. Run 安装.bat first."
   }
 
   $startParameters = @{

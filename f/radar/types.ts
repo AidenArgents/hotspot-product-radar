@@ -9,16 +9,24 @@ export type DataLines =
   | "假日+网页"
   | "假日+媒体"
   | string;
-export type SourceLine = "假日" | "媒体" | "网页";
+export type SourceLine = "假日" | "媒体" | "网页" | "运营";
 
 export interface RadarConfig {
   admin_password?: string;
+  search_engine: "tavily" | "google";
+  google_search_api_key: string;
+  google_search_cx_a: string;
+  google_search_cx_b: string;
   gemini_api_key: string;
+  gemini_api_key_2: string;
   tavily_api_key: string;
   spreadsheet_id: string;
   google_service_account_email: string;
   google_private_key: string;
   google_sheet_name: string;
+  operations_google_sheet_name: string;
+  product_report_url: string;
+  operations_report_url: string;
   dingtalk_token_1: string;
   dingtalk_secret_1: string;
   dingtalk_token_2: string;
@@ -31,6 +39,10 @@ export interface RadarConfig {
   schedule_enabled: boolean;
   schedule_hour: number;
   schedule_minute: number;
+  operations_schedule_enabled: boolean;
+  operations_schedule_hour: number;
+  operations_schedule_minute: number;
+  enabled_countries: string[];
   gemini_model: string;
   country_concurrency: number;
   site_concurrency: number;
@@ -41,6 +53,8 @@ export interface RadarConfig {
   default_time_range: TimeRange;
   default_manual_data_lines: DataLines;
   default_schedule_data_lines: DataLines;
+  default_operations_target_region: TargetRegion;
+  default_operations_time_range: TimeRange;
 }
 
 export interface ScanInput {
@@ -80,6 +94,7 @@ export interface RuntimeContext extends ScanInput {
   run_id: string;
   current_date: string;
   history_ids: string[];
+  onProgress?: (msg: string) => void;
 }
 
 export interface SourceExecutionRecord {
@@ -117,4 +132,59 @@ export interface CountryConfig {
   currency: string;
   region: string;
   media: readonly (readonly [string, string])[];
+}
+
+export type OperationDirection = "利好" | "利空" | "混合" | "中性";
+export type OperationUrgency = "立即处理" | "近期关注" | "长期观察";
+export type OperationVerificationStatus = "已确认" | "多源佐证" | "待核实";
+
+export interface OperationIntelligence {
+  intelligence_id: string;
+  title: string;
+  country: string;
+  region: string;
+  platform?: string;
+  policy_type?: string;
+  policy_subject?: string;
+  category: string;
+  direction: OperationDirection;
+  impact_score: number;
+  urgency: OperationUrgency;
+  effective_date?: string;
+  impact_scope?: string;
+  affected_dimensions?: string[];
+  affected_categories?: string[];
+  business_impact: string;
+  recommended_actions?: string[];
+  source_name: string;
+  source_url?: string;
+  source_urls?: string[];
+  source_date?: string;
+  authority?: string;
+  verification_status?: OperationVerificationStatus;
+  confidence?: number;
+  evidence_count?: number;
+  [key: string]: unknown;
+}
+
+export interface OperationScanInput {
+  target_region: TargetRegion;
+  time_range: TimeRange;
+  trigger_type: "manual" | "schedule";
+  force_refresh?: boolean;
+}
+
+export interface EvidenceItem {
+  evidence_id: string;
+  country: string;
+  region: string;
+  publisher: string;
+  acquisition_method: string;
+  source_kind: string;
+  title: string;
+  summary: string;
+  url: string;
+  published_at?: string;
+  authority: string;
+  raw?: unknown;
 }

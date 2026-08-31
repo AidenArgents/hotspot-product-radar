@@ -173,13 +173,13 @@ try {
   Write-Host "主项目：$projectRoot"
 
   if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    throw "没有检测到 Git。请先运行 install.bat。"
+    throw "没有检测到 Git。请先运行 安装.bat。"
   }
   if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    throw "没有检测到 Node.js。请先运行 install.bat。"
+    throw "没有检测到 Node.js。请先运行 安装.bat。"
   }
   if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
-    throw "没有检测到 npm。请先运行 install.bat。"
+    throw "没有检测到 npm。请先运行 安装.bat。"
   }
 
   & git rev-parse --is-inside-work-tree *> $null
@@ -242,7 +242,7 @@ try {
   Write-Host ""
   Write-Host "[完成] 新版本已经发布：" -ForegroundColor Green
   Write-Host $repositoryUrl -ForegroundColor Green
-  Write-Host "其他用户现在可以双击 update.bat 更新。"
+  Write-Host "其他用户现在可以双击 更新.bat 更新。"
 }
 catch {
   Write-Host ""

@@ -1,11 +1,15 @@
 {
   "admin_password": "",
   "gemini_api_key": "YOUR_GEMINI_API_KEY",
+  "gemini_api_key_2": "",
   "tavily_api_key": "YOUR_TAVILY_API_KEY",
   "spreadsheet_id": "",
   "google_service_account_email": "",
   "google_private_key": "",
-  "google_sheet_name": "工作表1",
+  "google_sheet_name": "产品情报",
+  "operations_google_sheet_name": "运营情报",
+  "product_report_url": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?gid=0",
+  "operations_report_url": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?gid=YOUR_OPERATIONS_SHEET_GID",
   "dingtalk_token_1": "",
   "dingtalk_secret_1": "",
   "dingtalk_token_2": "",
@@ -18,6 +22,10 @@
   "schedule_enabled": false,
   "schedule_hour": 9,
   "schedule_minute": 10,
+  "operations_schedule_enabled": false,
+  "operations_schedule_hour": 9,
+  "operations_schedule_minute": 30,
+  "enabled_countries": ["越南", "泰国", "印尼", "菲律宾", "马来西亚", "新加坡", "巴西", "墨西哥"],
   "gemini_model": "gemini-2.5-flash",
   "country_concurrency": 3,
   "site_concurrency": 4,
@@ -27,5 +35,7 @@
   "default_target_region": "全部",
   "default_time_range": "未来3个月",
   "default_manual_data_lines": "全部",
-  "default_schedule_data_lines": "媒体+网页"
+  "default_schedule_data_lines": "媒体+网页",
+  "default_operations_target_region": "全部",
+  "default_operations_time_range": "近3天"
 }

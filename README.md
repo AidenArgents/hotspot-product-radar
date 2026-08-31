@@ -1,31 +1,56 @@
 # 热点选品雷达 v8（Windows 原生版）
 
-这是从 `热点选品雷达v7 东南亚+拉美地区.json` 等价迁移出的轻量应用。运行时只有一个 Node.js 进程和一个 SQLite 文件，不依赖 Docker、n8n、Windmill 或独立数据库服务。
+这是从 `热点选品雷达v7 东南亚+拉美地区.json` 迁移并扩展出的轻量应用。左侧可在“产品情报”和“运营情报”之间切换；运行时仍只有一个 Node.js 进程和一个 SQLite 文件，不依赖 Docker、n8n、Windmill 或独立数据库服务。
+
+## 两套并列情报
+
+- 产品情报保留原有假日、媒体、网页三条线路，回答“发生了什么、卖什么、何时上架”。
+- 运营情报拥有独立情报库、扫描记录、评分、定时和Google Sheet，回答“国家经营环境发生了什么、影响什么、何时处理”。
+- 产品和运营结果分表存储，页面和筛选互不混合；Tavily、RSS、Gemini、团队访问和管理员权限共用。
+- 新闻证据先写入共享证据库。运营扫描在3小时内优先复用产品扫描取得的证据，不重复请求；国家级海关/税务官方入口属于运营专用补充来源。
+- 运营AI只接受证据中真实存在的原文URL，无法对应原始证据的结果不会入库。
 
 ## 已保留的原流程设计
 
 | 设计 | 原样保留方式 |
 |---|---|
 | 假日、媒体、网页三条线路 | 独立采集、独立结果、独立钉钉消息 |
-| Tavily 每个媒体站单独请求 | 目标 8 国共 30 个站点，仍然逐站查询 |
+| Tavily 每个媒体站单独请求 | 目标 8 国共 29 个有效媒体站，仍然逐站查询；移除已并入 CNA 的 TODAY |
 | Gemini 每个国家单独分析 | 假日和媒体线路仍是一国一次，避免字符超限和国家混淆 |
 | 体育搜索 | 7 条独立搜索全部保留，并在运行详情中单列 |
-| 网页采集 | 3 个 RSS 源和原有标题去重逻辑保留 |
-| Google Sheets | 新事件仍追加到原表，历史 ID 继续参与去重 |
+| 网页采集 | 原 3 个 RSS 保留并增加 4 个官方通讯社 RSS、GDACS 灾害预警和新鲜度校验 |
+| Google Sheets | 一个Spreadsheet包含“产品情报”和“运营情报”两个Sheet，分别写入和去重 |
 | 钉钉 | 假日 API、Tavily 媒体、网页抓取仍分别发送给两个机器人 |
 | 定时 | 每天 09:10，默认运行“媒体+网页” |
 
 速度提升来自安全并发：三条线路并行、多个国家并行、同一国家的站点并行，但每个站点的请求内容和每个国家的 Gemini 边界没有合并。
 
+## 数据源增强与质量控制
+
+- 每个国家增加一个官方旅游、节庆或文化活动日历，仍在该国家自己的 Gemini 请求内分析。
+- 官方 RSS 包括印尼 ANTARA、马来西亚 BERNAMA、新加坡 CNA 和巴西 Agência Brasil。
+- GDACS 只保留目标 8 国、近期且仍有效的灾害事件，并按事件 ID 去重、按预警等级排序。
+- 泰国和马来西亚在 Nager.Date 没有数据时，自动使用中央清单中的官方 2026 年假日表；缺少新年份时会在运行记录明确提示维护，不会静默返回空结果。
+- 媒体 Tavily 请求使用新闻模式和发布日期范围。返回结果必须同时通过域名、URL、日期、正文和重复校验，“HTTP 成功但结果无效”会显示为“部分异常”。
+- 每个 RSS 设置独立的新鲜度期限；因此过期的参考消息仍被保留检查，但不会再送给 Gemini。
+- 网页线路给每个来源设置字符配额，防止单个大 RSS 或 GDACS 占满 Gemini 上下文。
+- 运营情报额外接入8个国家的海关、税务或国家贸易官方入口；政治和财经新闻只有明确影响税费、清关、支付、消费、物流、合规或供应链时才会入库。
+- 平台动态按国家分别检索 Shopee、Lazada、TikTok Shop 与 Mercado Libre 的官方卖家中心/帮助中心，覆盖佣金、交易费、支付、物流、禁限售、处罚和店铺规则。
+- 跨境行业媒体池包括亿邦动力、雨果跨境、AMZ123、TT123、DNY123、白鲸出海、出海网、跨境知道和 Fintech News Malaysia。每个网站单独请求；按区域搜索后只把正文明确提到的国家送入对应国家分析。
+- 平台规则实行三级核验：平台或政府官方原文为“已确认”，至少两个不同发布者为“多源佐证”，单一行业媒体为“待核实”。待核实内容可以在运营情报库和Google表格继续观察，但不会进入钉钉正式日报。
+- 相同平台变化按“国家＋平台＋政策类型＋生效日期＋费率变化/主题”生成稳定ID；不同网站改写标题不会再制造新的重复记录。
+
+数据源集中维护在 `config/source_catalog.json`，系统设置页提供只读清单。Mercado Libre Trends 和 Google Trends 已列为“待授权来源”，目前不会参与采集：前者需要 Mercado Libre OAuth 与业务指标权限，后者需要 Google Trends API Alpha 资格。获得授权后再接入，系统不会用不稳定的页面爬虫假装成功。
+
 ## 启动和访问
 
-- 第一次使用：双击 `setup.bat`；它会准备运行环境、创建本地配置、启动服务并打开看板。首次生成配置时还会打开记事本，填写密钥后运行 `restart.bat` 即可生效。
-- 平时启动：双击 `start.bat`。
+- 第一次使用：双击 `初始化.bat`；它会准备运行环境、创建本地配置、启动服务并打开看板。首次生成配置时还会打开记事本，填写密钥后运行 `重启.bat` 即可生效。
+- 平时启动：双击 `启动.bat`。
 - 本机访问：`http://localhost:3210`
 - 当前局域网访问：`http://192.168.1.22:3210`
-- 关闭后台：双击 `stop.bat`。
+- 关闭后台：双击 `停止.bat`。
 
-需要登录 Windows 后自动运行时，双击 `install-startup.bat`；取消时双击 `uninstall-startup.bat`。电脑需要保持开机和联网，团队才能访问。
+需要登录 Windows 后自动运行时，双击 `安装自启.bat`；取消时双击 `卸载自启.bat`。电脑需要保持开机和联网，团队才能访问。
 
 如果同一局域网的其他电脑打不开，而本机可以打开，通常是 Windows 防火墙没有允许 3210 端口。可在管理员 PowerShell 中按需执行：
 
@@ -41,20 +66,20 @@ New-NetFirewallRule -DisplayName "Hotspot Product Radar" -Direction Inbound -Pro
 
 `config/radar_config.local.json`
 
-当前电脑上的这个文件已经从原 n8n 文件导入真实值，并被 `.gitignore` 排除，不会进入版本库。公开仓库提供 `config/radar_config.example.json`；新用户运行 `setup.bat` 时会自动复制成自己的本地配置，并提示填写。主要分组：
+当前电脑上的这个文件已经从原 n8n 文件导入真实值，并被 `.gitignore` 排除，不会进入版本库。公开仓库提供 `config/radar_config.example.json`；新用户运行 `初始化.bat` 时会自动复制成自己的本地配置，并提示填写。主要分组：
 
-- AI/搜索：`gemini_api_key`、`tavily_api_key`、`gemini_model`
+- AI/搜索：`gemini_api_key`、`gemini_api_key_2`（可选轮换 Key）、`tavily_api_key`、`gemini_model`
 - 管理权限：`admin_password`，远程团队成员修改系统设置时需要验证；未设置时只允许服务器本机保存
-- Google Sheets：`spreadsheet_id`、服务账号邮箱、私钥、工作表名称
+- Google Sheets：`spreadsheet_id`、服务账号邮箱、私钥、两个Sheet名称，以及 `product_report_url` / `operations_report_url` 两个钉钉报告入口；中文Sheet名受支持
 - 钉钉：两个机器人的 token 和 secret
 - 本地服务：`database_file`、`server_host`、`server_port`、`dashboard_url`
 - 网络回退：`https_proxy`（当前指向本机 Clash Verge，仅在 Gemini 主请求失败时使用）
-- 定时：`schedule_enabled`、`schedule_hour`、`schedule_minute`
+- 定时：产品使用 `schedule_*`；运营使用 `operations_schedule_*`
 - 并发/超时：`country_concurrency`、`site_concurrency` 和两个 timeout
 - Gemini 限流：`gemini_min_interval_ms`，保留逐国请求但避免触发免费层每分钟额度
 - 默认扫描：区域、时间范围、手动线路、定时线路
 
-修改配置后双击 `restart.bat`，使新配置生效。
+修改配置后双击 `重启.bat`，使新配置生效。
 
 虽然按要求复用了原密钥，仍建议在迁移稳定后逐项轮换曾经泄露的密钥。
 
@@ -62,11 +87,15 @@ New-NetFirewallRule -DisplayName "Hotspot Product Radar" -Direction Inbound -Pro
 
 ## 页面系统设置
 
-看板顶部的“系统设置”可以直接修改每日运行开关和时间、默认扫描区域/范围/线路、Gemini 模型、并发、超时、Google Sheets、两组钉钉机器人、代理及 API Key。日常运行设置保存后立即生效，不需要重启；`server_host` 和 `server_port` 保存后需要运行 `restart.bat`。
+看板顶部的“系统设置”可以直接勾选启用国家，并修改每日运行开关和时间、默认扫描区域/范围/线路、Gemini 模型、并发、超时、Google Sheets、两组钉钉机器人、代理及 API Key。国家开关同时作用于产品情报与运营情报；取消国家后停止后续采集和分析，但保留历史数据。日常运行设置保存后立即生效，不需要重启；`server_host` 和 `server_port` 保存后需要运行 `重启.bat`。
+
+同一个Google表格ID下使用两个标签页：产品结果写入“产品情报”，运营结果写入“运营情报”。程序会正确处理中文名称；标签页不存在时自动创建，首行为空时自动写入各自表头。
+
+钉钉消息末尾不放本地团队看板地址。假日、媒体、网页三条产品播报统一使用产品情报报告地址，运营播报使用运营情报报告地址；两个地址都可在系统设置的“Google Sheets 与钉钉”区块修改。
 
 密钥原值不会通过接口返回浏览器，页面只显示“已配置/未配置”；留空会保留原值，也可以明确选择清除。首次应在服务器本机设置至少 8 位的管理员密码，之后远程团队成员必须输入该密码才能保存。公开部署时还必须使用 HTTPS，避免管理员密码或新密钥在网络中明文传输。
 
-国家清单、逐站媒体源、体育搜索、RSS 来源、提示词以及三条独立消息边界仍属于流程设计，继续由版本化代码管理，不会被普通页面设置意外改动。
+可运行的8国范围仍由版本化代码管理，但其中哪些国家当前启用可在页面勾选。逐站媒体源、体育搜索、RSS 来源、提示词以及三条独立消息边界仍属于流程设计，不会被普通页面设置意外改动。
 
 ## 数据与备份
 
@@ -81,18 +110,18 @@ New-NetFirewallRule -DisplayName "Hotspot Product Radar" -Direction Inbound -Pro
 
 | 文件 | 用途 |
 |---|---|
-| `setup.bat` | 一键安装；支持从 GitHub 克隆或把 ZIP 下载目录转换成可更新的 Git 安装 |
-| `install.bat` | 安装或修复 Git、Node.js、依赖和前端构建，不修改配置与数据 |
-| `start.bat` | 后台启动并打开页面；重复运行不会启动第二份 |
-| `restart.bat` | 安全关闭本项目进程后重新启动 |
-| `stop.bat` | 只关闭经过路径和 PID 校验的本项目进程 |
-| `status.bat` | 查看服务、端口及 PID 状态 |
-| `update.bat` | 保留本地配置和数据库，安全拉取 GitHub 最新版本、安装并重启 |
-| `发布更新.bat` | 维护者使用；检查类型、测试、构建和密钥后确认提交并推送 GitHub |
-| `install-startup.bat` | 安装当前用户的开机登录自启动快捷方式 |
-| `uninstall-startup.bat` | 移除开机登录自启动，不关闭当前服务 |
+| `初始化.bat` | 一键安装；支持从 GitHub 克隆或把 ZIP 下载目录转换成可更新的 Git 安装 |
+| `安装.bat` | 安装或修复 Git、Node.js、依赖和前端构建，不修改配置与数据 |
+| `启动.bat` | 后台启动并打开页面；重复运行不会启动第二份 |
+| `重启.bat` | 安全关闭本项目进程后重新启动 |
+| `停止.bat` | 只关闭经过路径和 PID 校验的本项目进程 |
+| `状态.bat` | 查看服务、端口及 PID 状态 |
+| `更新.bat` | 自动检测并下载 GitHub 最新版本（免 git），保留本地配置和数据库，覆盖合并后重启 |
+| `发布更新.bat` | 维护者使用；Step1 提交推送源码，Step2 构建并发布免 git 更新包到 GitHub Releases |
+| `安装自启.bat` | 安装当前用户的开机登录自启动快捷方式 |
+| `卸载自启.bat` | 移除开机登录自启动，不关闭当前服务 |
 
-如果电脑没有 Git 或合适版本的 Node.js，`setup.bat` / `install.bat` 会把便携版下载到项目自己的 `.runtime` 目录，不安装 Docker，也不改 Windows 的全局 Git、Node.js。
+如果电脑没有 Git 或合适版本的 Node.js，`初始化.bat` / `安装.bat` 会把便携版下载到项目自己的 `.runtime` 目录，不安装 Docker，也不改 Windows 的全局 Git、Node.js。
 
 ## 命令行方式
 
@@ -107,6 +136,7 @@ npm start
 
 ```powershell
 npm run scan -- --region=全部 --time=未来3个月 --lines=全部
+npm run scan:operations -- --region=全部 --time=近3天
 ```
 
 验证：
@@ -119,3 +149,7 @@ npm run test:external
 ```
 
 `test:external` 默认只跑越南假日线路，不发钉钉、不写 Google Sheets，用于检查真实 Nager + Gemini 链路。运行 `npm run test:external -- media` 会改为检查新加坡逐站 Tavily + Gemini 媒体链路。
+
+---
+
+<sub>内容由 [Kitt.Plus](https://kitt.plus) 超级凯特 AI 生成· 2026-08-31 14:42</sub>
