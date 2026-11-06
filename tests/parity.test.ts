@@ -13,21 +13,27 @@ test("源目录保留原媒体结构并加入官方数据层", () => {
   >;
   const targetSites = targets.flatMap((country) => [...countries[country].media]);
   assert.equal(targetSites.length, 29);
-  assert.equal(SOURCE_CATALOG.sports_searches.length, 7);
+  const sportsDomains = new Set([
+    ...SOURCE_CATALOG.sports_searches,
+    ...Object.values(SOURCE_CATALOG.country_sports_searches).flat(),
+  ].map(([domain]) => domain));
+  assert.deepEqual([...sportsDomains].sort(), ["espn.com", "fifa.com", "flashscore.com", "formula1.com", "olympics.com", "the-afc.com", "uefa.com"]);
   assert.equal(SOURCE_CATALOG.rss_feeds.length, 7);
-  assert.equal(SOURCE_CATALOG.official_event_sources.length, 8);
-  assert.equal(SOURCE_CATALOG.operations_official_sources.length, 8);
-  assert.equal(new Set(SOURCE_CATALOG.operations_official_sources.map((source) => source.country)).size, 8);
-  assert.equal(SOURCE_CATALOG.platform_official_sources.length, 24);
-  assert.equal(new Set(SOURCE_CATALOG.platform_official_sources.map((source) => source.country)).size, 8);
+  assert.equal(SOURCE_CATALOG.official_event_sources.length, 9);
+  assert.equal(SOURCE_CATALOG.operations_official_sources.length, 11);
+  assert.deepEqual(SOURCE_CATALOG.operations_official_sources.filter((source) => source.country === "美国")
+    .map((source) => source.domain).sort(), ["cbp.gov", "cpsc.gov", "ftc.gov"]);
+  assert.equal(new Set(SOURCE_CATALOG.operations_official_sources.map((source) => source.country)).size, 9);
+  assert.equal(SOURCE_CATALOG.platform_official_sources.length, 28);
+  assert.equal(new Set(SOURCE_CATALOG.platform_official_sources.map((source) => source.country)).size, 9);
   assert.deepEqual(
     SOURCE_CATALOG.platform_industry_media_sources.map((source) => source.name),
-    ["亿邦动力", "雨果跨境", "AMZ123", "TT123", "DNY123", "白鲸出海", "出海网", "跨境知道", "Fintech News Malaysia"],
+    ["Marketplace Pulse", "Retail Dive", "亿邦动力", "雨果跨境", "AMZ123", "TT123", "DNY123", "白鲸出海", "出海网", "跨境知道", "Fintech News Malaysia"],
   );
   assert.equal(SOURCE_CATALOG.rss_feeds.filter((feed) => feed.official).length, 4);
   assert.deepEqual(Object.keys(SOURCE_CATALOG.holiday_fallbacks).sort(), ["泰国", "马来西亚"]);
   assert.match(SOURCE_CATALOG.gdacs.url, /gdacs\.org/);
-  assert.equal(SOURCE_CATALOG.optional_sources.length, 2);
+  assert.deepEqual(SOURCE_CATALOG.optional_sources.map((source) => source.name), ["Mercado Libre Trends API"]);
   for (const [domain, query] of targetSites) {
     assert.match(query, new RegExp(`site:${domain.replaceAll(".", "\\.")}`));
   }

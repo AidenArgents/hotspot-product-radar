@@ -13,6 +13,8 @@ import { queryOperationRuns } from "./f/radar/query_operation_runs.ts";
 import { queryOperationRunDetail } from "./f/radar/query_operation_run_detail.ts";
 import { runScan } from "./f/radar/run_scan.ts";
 import { runOperationsScan } from "./f/radar/run_operations.ts";
+import { CalendarReminders } from "./f/radar/calendar_reminders.ts";
+import { connectDatabase } from "./f/radar/database.ts";
 import { applySettingsUpdate, LIVE_CONFIG_FIELDS, publicSettings } from "./f/radar/settings.ts";
 import type { DataLines, OperationScanInput, ScanInput, SourceLine, TargetRegion, TimeRange } from "./f/radar/types.ts";
 
@@ -29,6 +31,7 @@ type Job = {
 
 const config = loadConfig();
 await initDatabase(config);
+const calendar = new CalendarReminders(connectDatabase(config), config);
 const jobs = new Map<string, Job>();
 const dashboardDist = path.join(PROJECT_ROOT, "f", "radar", "dashboard__raw_app", "dist");
 let activeScan: Promise<unknown> | null = null;
@@ -123,6 +126,8 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
       ok: true,
       service: "热点选品雷达",
       active_scan: Boolean(activeScan),
+      calendar_enabled: Boolean(config.calendar_enabled),
+      calendar_schedule: `${String(config.calendar_hour ?? 9).padStart(2, "0")}:${String(config.calendar_minute ?? 0).padStart(2, "0")}`,
       schedule: config.schedule_enabled
         ? `${String(config.schedule_hour).padStart(2, "0")}:${String(config.schedule_minute).padStart(2, "0")}`
         : "disabled",
@@ -130,6 +135,14 @@ async function api(request: IncomingMessage, response: ServerResponse, url: URL)
         ? `${String(config.operations_schedule_hour).padStart(2, "0")}:${String(config.operations_schedule_minute).padStart(2, "0")}`
         : "disabled",
     });
+  }
+  if (request.method === "GET" && url.pathname === "/api/calendar") return json(response, 200, calendar.state());
+  if (request.method === "POST" && ["/api/calendar/sync", "/api/calendar/action"].includes(url.pathname)) {
+    if (!canSaveSettings(request)) return json(response, 403, { error: "请填写正确的管理员密码" });
+    if (url.pathname.endsWith("/sync")) return json(response, 200, await calendar.sync());
+    const input = await body(request);
+    calendar.action(String(input.id ?? ""), String(input.action ?? ""));
+    return json(response, 200, calendar.state());
   }
   if (request.method === "GET" && url.pathname === "/api/settings") {
     return json(response, 200, publicSettings(readConfig(), { localRequest: isLocalRequest(request) }));
@@ -317,3 +330,6 @@ server.listen(config.server_port, config.server_host, () => {
 });
 setInterval(scheduledTick, 30_000).unref();
 scheduledTick();
+// 每30秒只检查是否到发送/失败重试时间，不定期抓取线上日历。
+setInterval(() => { void calendar.tick().catch((error) => console.error("备货提醒任务失败", error instanceof Error ? error.message : String(error))); }, 30_000).unref();
+void calendar.tick().catch((error) => console.error("备货提醒启动检查失败", error instanceof Error ? error.message : String(error)));

@@ -1,4 +1,4 @@
-export type TargetRegion = "全部" | "东南亚" | "拉美" | string;
+export type TargetRegion = "全部" | "北美" | "东南亚" | "拉美" | string;
 export type TimeRange = "今天" | "近3天" | "本周" | "本月" | "未来3个月" | string;
 export type DataLines =
   | "全部"
@@ -13,10 +13,6 @@ export type SourceLine = "假日" | "媒体" | "网页" | "运营";
 
 export interface RadarConfig {
   admin_password?: string;
-  search_engine: "tavily" | "google";
-  google_search_api_key: string;
-  google_search_cx_a: string;
-  google_search_cx_b: string;
   gemini_api_key: string;
   gemini_api_key_2: string;
   tavily_api_key: string;
@@ -55,6 +51,12 @@ export interface RadarConfig {
   default_schedule_data_lines: DataLines;
   default_operations_target_region: TargetRegion;
   default_operations_time_range: TimeRange;
+  calendar_enabled?: boolean;
+  calendar_url?: string;
+  calendar_hour?: number;
+  calendar_minute?: number;
+  calendar_start_date?: string;
+  calendar_offsets?: number[];
 }
 
 export interface ScanInput {
@@ -111,6 +113,8 @@ export interface SourceExecutionRecord {
 }
 
 export interface SportsResult {
+  country?: string;
+  scope?: "country" | "global";
   source_name: string;
   query: string;
   answer?: string;

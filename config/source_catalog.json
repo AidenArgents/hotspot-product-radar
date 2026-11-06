@@ -1,5 +1,8 @@
 {
   "regions": {
+    "北美": [
+      "美国"
+    ],
     "东南亚": [
       "越南",
       "泰国",
@@ -14,6 +17,29 @@
     ]
   },
   "countries": {
+    "美国": {
+      "code": "US",
+      "currency": "USD",
+      "region": "北美",
+      "media": [
+        [
+          "cnn.com",
+          "site:cnn.com USA America ${current_year} ${config.time_range} news breaking disaster hurricane wildfire celebrity trending Super Bowl Thanksgiving Black Friday"
+        ],
+        [
+          "nbcnews.com",
+          "site:nbcnews.com USA America ${current_year} ${config.time_range} news breaking disaster celebrity trending holiday event"
+        ],
+        [
+          "abcnews.go.com",
+          "site:abcnews.go.com USA America ${current_year} ${config.time_range} news breaking disaster celebrity trending holiday event"
+        ],
+        [
+          "cbsnews.com",
+          "site:cbsnews.com USA America ${current_year} ${config.time_range} news breaking disaster celebrity trending holiday event"
+        ]
+      ]
+    },
     "越南": {
       "code": "VN",
       "currency": "VND",
@@ -209,29 +235,6 @@
         ]
       ]
     },
-    "美国": {
-      "code": "US",
-      "currency": "USD",
-      "region": "美国",
-      "media": [
-        [
-          "cnn.com",
-          "site:cnn.com USA America 2026 ${config.time_range} news breaking disaster hurricane wildfire celebrity trending Super Bowl Thanksgiving Black Friday"
-        ],
-        [
-          "nbcnews.com",
-          "site:nbcnews.com USA America 2026 ${config.time_range} news breaking disaster celebrity trending holiday event"
-        ],
-        [
-          "abcnews.go.com",
-          "site:abcnews.go.com USA America 2026 ${config.time_range} news breaking disaster celebrity trending holiday event"
-        ],
-        [
-          "cbsnews.com",
-          "site:cbsnews.com USA America 2026 ${config.time_range} news breaking disaster celebrity trending holiday event"
-        ]
-      ]
-    },
     "英国": {
       "code": "GB",
       "currency": "GBP",
@@ -388,34 +391,114 @@
   },
   "sports_searches": [
     [
-      "espn.com",
-      "site:espn.com 2026 ${config.time_range} Southeast Asia Brazil Mexico football soccer championship match schedule SEA Games Copa America Liga MX Brasileirao"
-    ],
-    [
       "fifa.com",
-      "site:fifa.com 2026 ${config.time_range} World Cup qualifier Asia South America ASEAN match schedule"
-    ],
-    [
-      "the-afc.com",
-      "site:the-afc.com 2026 ${config.time_range} Asian Cup Champions League AFF Cup SEA Games Vietnam Thailand Indonesia Philippines Malaysia Singapore match schedule"
-    ],
-    [
-      "flashscore.com",
-      "site:flashscore.com 2026 ${config.time_range} Vietnam Thailand Indonesia Philippines Malaysia Singapore Brazil Mexico match schedule final championship"
+      "site:fifa.com ${current_year} ${config.time_range} ${start_date} ${end_date} World Cup international tournament match schedule final dates"
     ],
     [
       "uefa.com",
-      "site:uefa.com 2026 ${config.time_range} Champions League Europa League Euro match final schedule"
+      "site:uefa.com ${current_year} ${config.time_range} ${start_date} ${end_date} Champions League Europa League Euro final schedule dates"
     ],
     [
       "formula1.com",
-      "site:formula1.com 2026 ${config.time_range} Grand Prix race calendar Monaco Silverstone Monza Barcelona Abu Dhabi"
+      "site:formula1.com ${current_year} ${config.time_range} ${start_date} ${end_date} Grand Prix race calendar schedule dates"
     ],
     [
       "olympics.com",
-      "site:olympics.com 2026 ${config.time_range} Winter Olympics Milano Cortina schedule event"
+      "site:olympics.com ${current_year} ${config.time_range} ${start_date} ${end_date} Olympic Games international competition schedule dates"
     ]
   ],
+  "country_sports_searches": {
+    "美国": [
+      [
+        "espn.com",
+        "site:espn.com ${current_year} ${config.time_range} ${start_date} ${end_date} United States USA NFL NBA MLB NHL MLS NCAA championship playoffs schedule"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} United States USA basketball baseball American football soccer tournament schedule"
+      ]
+    ],
+    "越南": [
+      [
+        "the-afc.com",
+        "site:the-afc.com ${current_year} ${config.time_range} ${start_date} ${end_date} Vietnam Vietnamese national football team ASEAN AFF Cup SEA Games fixtures"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Vietnam V.League Vietnamese football national team tournament schedule"
+      ]
+    ],
+    "泰国": [
+      [
+        "the-afc.com",
+        "site:the-afc.com ${current_year} ${config.time_range} ${start_date} ${end_date} Thailand Thai national football team ASEAN AFF Cup SEA Games fixtures"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Thailand Thai League national team football volleyball tournament schedule"
+      ]
+    ],
+    "印尼": [
+      [
+        "the-afc.com",
+        "site:the-afc.com ${current_year} ${config.time_range} ${start_date} ${end_date} Indonesia Indonesian national football team ASEAN AFF Cup SEA Games fixtures"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Indonesia Liga 1 football badminton national team tournament schedule"
+      ]
+    ],
+    "菲律宾": [
+      [
+        "espn.com",
+        "site:espn.com ${current_year} ${config.time_range} ${start_date} ${end_date} Philippines Philippine PBA UAAP Gilas Pilipinas basketball volleyball boxing tournament schedule"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Philippines PBA UAAP Philippine national team basketball volleyball tournament schedule"
+      ]
+    ],
+    "马来西亚": [
+      [
+        "the-afc.com",
+        "site:the-afc.com ${current_year} ${config.time_range} ${start_date} ${end_date} Malaysia Malaysian national football team ASEAN AFF Cup SEA Games fixtures"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Malaysia Super League football badminton national team tournament schedule"
+      ]
+    ],
+    "新加坡": [
+      [
+        "the-afc.com",
+        "site:the-afc.com ${current_year} ${config.time_range} ${start_date} ${end_date} Singapore national football team ASEAN AFF Cup SEA Games fixtures"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Singapore Premier League football badminton national team tournament schedule"
+      ]
+    ],
+    "巴西": [
+      [
+        "espn.com",
+        "site:espn.com ${current_year} ${config.time_range} ${start_date} ${end_date} Brasil Brazil Brasileirao Copa do Brasil selecao futebol basquete calendario final"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Brazil Brasil Brasileirao Copa do Brasil football volleyball tournament schedule"
+      ]
+    ],
+    "墨西哥": [
+      [
+        "espn.com",
+        "site:espn.com ${current_year} ${config.time_range} ${start_date} ${end_date} Mexico Liga MX seleccion nacional futbol beisbol calendario final"
+      ],
+      [
+        "flashscore.com",
+        "site:flashscore.com ${current_year} ${config.time_range} ${start_date} ${end_date} Mexico Liga MX Mexican national team football baseball tournament schedule"
+      ]
+    ]
+  },
   "rss_feeds": [
     {
       "name": "环球网-国际",
@@ -462,6 +545,20 @@
     }
   ],
   "official_event_sources": [
+    {
+      "country": "美国",
+      "name": "Brand USA · 美国重大节庆与活动",
+      "publisher": "Brand USA（美国国家旅游推广机构）",
+      "domain": "visittheusa.com",
+      "url": "https://www.visittheusa.com/major-events/",
+      "allowed_path_fragments": [
+        "/major-events",
+        "/experience/",
+        "/experiences/",
+        "/events/"
+      ],
+      "query": "site:visittheusa.com United States ${current_year} festival cultural event dates ${config.time_range} ${start_date} ${end_date}"
+    },
     {
       "country": "越南",
       "name": "越南国家旅游局活动日历",
@@ -528,6 +625,38 @@
     }
   ],
   "platform_official_sources": [
+    {
+      "country": "美国",
+      "platform": "Amazon",
+      "name": "Amazon美国卖家公告",
+      "domain": "sell.amazon.com",
+      "url": "https://sell.amazon.com/blog/announcements",
+      "query": "site:sell.amazon.com/blog/announcements ${current_year} US United States Amazon seller fees fulfillment policy announcement update"
+    },
+    {
+      "country": "美国",
+      "platform": "Walmart",
+      "name": "Walmart Marketplace美国卖家规则",
+      "domain": "marketplacelearn.walmart.com",
+      "url": "https://marketplacelearn.walmart.com/guides/Policies%20%26%20standards/Account/Walmart-Marketplace-seller-retailer-policies",
+      "query": "site:marketplacelearn.walmart.com/guides Walmart Marketplace ${current_year} seller policy update referral fees fulfillment returns prohibited products"
+    },
+    {
+      "country": "美国",
+      "platform": "eBay",
+      "name": "eBay美国卖家新闻",
+      "domain": "ebay.com",
+      "url": "https://www.ebay.com/sellercenter/news",
+      "query": "site:ebay.com/sellercenter/news ${current_year} US United States seller policy fees shipping returns marketplace update"
+    },
+    {
+      "country": "美国",
+      "platform": "TikTok Shop",
+      "name": "TikTok Shop美国卖家大学",
+      "domain": "seller-us.tiktok.com",
+      "url": "https://seller-us.tiktok.com/university/new-policies",
+      "query": "site:seller-us.tiktok.com/university/new-policies ${current_year} US United States seller policy fees shipping fulfillment returns product listing update"
+    },
     {
       "country": "越南",
       "platform": "Shopee",
@@ -699,32 +828,64 @@
   ],
   "platform_industry_media_sources": [
     {
+      "name": "Marketplace Pulse",
+      "search_mode": "news",
+      "domain": "marketplacepulse.com",
+      "countries": [
+        "美国"
+      ],
+      "tier": "A",
+      "query": "site:marketplacepulse.com ${current_year} United States US Walmart Amazon eBay TikTok Shop marketplace seller fees policy payments fulfillment update"
+    },
+    {
+      "name": "Retail Dive",
+      "search_mode": "news",
+      "domain": "retaildive.com",
+      "countries": [
+        "美国"
+      ],
+      "tier": "A",
+      "query": "site:retaildive.com/news ${current_year} United States US Walmart Amazon eBay TikTok Shop marketplace seller fees policy fulfillment update"
+    },
+    {
       "name": "亿邦动力",
       "domain": "ebrun.com",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "A",
-      "query": "site:ebrun.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+      "query": "site:ebrun.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整",
+      "queries_by_region": {
+        "北美": "site:ebrun.com ${current_year} 美国 美国站 Amazon Walmart eBay TikTok Shop 跨境卖家 佣金 费率 FBA 物流 平台规则 政策调整"
+      }
     },
     {
       "name": "雨果跨境",
       "domain": "cifnews.com",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "A",
-      "query": "site:cifnews.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+      "query": "site:cifnews.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整",
+      "queries_by_region": {
+        "北美": "site:cifnews.com ${current_year} 美国 美国站 Amazon Walmart eBay TikTok Shop 跨境卖家 佣金 费率 FBA 物流 平台规则 政策调整"
+      }
     },
     {
       "name": "AMZ123",
       "domain": "amz123.com",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "B",
-      "query": "site:amz123.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+      "query": "site:amz123.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整",
+      "queries_by_region": {
+        "北美": "site:amz123.com ${current_year} 美国 美国站 Amazon Walmart eBay TikTok Shop 亚马逊 卖家 佣金 FBA 物流 费用 政策更新"
+      }
     },
     {
       "name": "TT123",
       "domain": "tt123.com",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "A",
-      "query": "site:tt123.com ${current_year} ${scope_terms} TikTok Shop 佣金 交易费 支付 物流 履约 禁售 卖家政策 规则更新"
+      "query": "site:tt123.com ${current_year} ${scope_terms} TikTok Shop 佣金 交易费 支付 物流 履约 禁售 卖家政策 规则更新",
+      "queries_by_region": {
+        "北美": "site:tt123.com ${current_year} 美国 美国站 TikTok Shop 卖家政策 佣金 交易费 物流 履约 禁售 规则更新"
+      }
     },
     {
       "name": "DNY123",
@@ -736,23 +897,32 @@
     {
       "name": "白鲸出海",
       "domain": "baijing.cn",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "A",
-      "query": "site:baijing.cn ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+      "query": "site:baijing.cn ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整",
+      "queries_by_region": {
+        "北美": "site:baijing.cn ${current_year} 美国 美国站 Amazon Walmart eBay TikTok Shop 跨境电商 卖家 费用 物流 平台政策 市场"
+      }
     },
     {
       "name": "出海网",
       "domain": "chwang.com",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "A",
-      "query": "site:chwang.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+      "query": "site:chwang.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整",
+      "queries_by_region": {
+        "北美": "site:chwang.com ${current_year} 美国 美国站 Amazon Walmart eBay TikTok Shop 跨境卖家 费用 物流 政策平台规则"
+      }
     },
     {
       "name": "跨境知道",
       "domain": "ikjzd.com",
-      "regions": ["东南亚", "拉美"],
+      "regions": ["北美", "东南亚", "拉美"],
       "tier": "B",
-      "query": "site:ikjzd.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整"
+      "query": "site:ikjzd.com ${current_year} ${scope_terms} Shopee Lazada TikTok Shop Mercado Libre 佣金 费率 支付 物流 卖家政策 平台规则 调整",
+      "queries_by_region": {
+        "北美": "site:ikjzd.com ${current_year} 美国 美国站 Amazon Walmart eBay TikTok Shop 跨境卖家 费用 物流 平台规则 政策更新"
+      }
     },
     {
       "name": "Fintech News Malaysia",
@@ -763,6 +933,26 @@
     }
   ],
   "operations_official_sources": [
+    {
+      "country": "美国",
+      "name": "美国海关与边境保护局",
+      "domain": "cbp.gov",
+      "query": "site:cbp.gov ${current_year} United States customs import ecommerce tariff de minimis regulation announcement"
+    },
+    {
+      "country": "美国",
+      "name": "美国联邦贸易委员会（FTC）",
+      "domain": "ftc.gov",
+      "url": "https://www.ftc.gov/news-events/news/press-releases",
+      "query": "site:ftc.gov/news-events/news/press-releases ${current_year} ecommerce online marketplace seller advertising consumer protection fees rule"
+    },
+    {
+      "country": "美国",
+      "name": "美国消费品安全委员会（CPSC）",
+      "domain": "cpsc.gov",
+      "url": "https://www.cpsc.gov/Newsroom",
+      "query": "site:cpsc.gov/Newsroom ${current_year} imported consumer products online marketplace seller product safety recall regulation"
+    },
     {
       "country": "越南",
       "name": "越南海关与国家贸易门户",
@@ -875,13 +1065,6 @@
       "countries": ["巴西", "墨西哥"],
       "status": "等待 Mercado Libre 应用、OAuth 与业务指标权限",
       "setup_url": "https://developers.mercadolibre.com.ar/en_us/about-our-api/trends"
-    },
-    {
-      "name": "Google Trends API",
-      "countries": ["越南", "泰国", "印尼", "菲律宾", "马来西亚", "新加坡", "巴西", "墨西哥"],
-      "status": "等待 Google Trends API Alpha 访问资格",
-      "setup_url": "https://developers.google.com/search/apis/trends"
     }
-  ],
-  "google_news_queries": []
+  ]
 }

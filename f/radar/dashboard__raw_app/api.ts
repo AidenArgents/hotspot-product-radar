@@ -32,6 +32,13 @@ async function call(runnable: string, args: Arguments) {
   if (runnable === "get_settings") {
     return responseJson(await fetch("/api/settings"));
   }
+  if (runnable === "calendar_state") return responseJson(await fetch("/api/calendar"));
+  if (runnable === "calendar_sync" || runnable === "calendar_action") {
+    const { auth_password, ...payload } = args;
+    return responseJson(await fetch(runnable === "calendar_sync" ? "/api/calendar/sync" : "/api/calendar/action", {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Radar-Admin-Password": String(auth_password ?? "") }, body: JSON.stringify(payload),
+    }));
+  }
   if (runnable === "save_settings") {
     const { auth_password, ...payload } = args;
     return responseJson(await fetch("/api/settings", {

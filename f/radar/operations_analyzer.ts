@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { callGeminiText } from "./gemini.ts";
+import { callGeminiResponse, geminiFailurePayload, parseGeminiArray } from "./gemini_client.ts";
 import { mapLimit, normalizeDate } from "./lib.ts";
 import { isConcreteArticleUrl } from "./web_search.ts";
 import type {
@@ -27,43 +27,11 @@ const categories = new Set([
   "电商基础设施",
   "其他经营环境",
 ]);
-const platforms = new Set(["Shopee", "Lazada", "TikTok Shop", "Mercado Libre", "其他平台"]);
+const platforms = new Set(["Shopee", "Lazada", "TikTok Shop", "Mercado Libre", "Walmart", "Amazon", "其他平台"]);
 const policyTypes = new Set([
   "佣金与交易费", "支付方式", "物流与履约", "促销与流量", "商品与合规",
   "账户与处罚", "入驻与店铺", "平台服务", "其他平台变化",
 ]);
-
-function jsonItems(text: string): Array<Record<string, unknown>> {
-  const fenced = text.match(/```json\s*([\s\S]*?)```/i);
-  let candidate = (fenced?.[1] ?? text).trim();
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}") + 1;
-  if (start >= 0 && end > start) {
-    try {
-      const parsed = JSON.parse(candidate.slice(start, end)) as { intelligence?: unknown[] };
-      if (Array.isArray(parsed.intelligence)) {
-        return parsed.intelligence.filter((item): item is Record<string, unknown> =>
-          Boolean(item) && typeof item === "object" && !Array.isArray(item));
-      }
-    } catch {
-      // 截断时继续保留已经闭合的对象。
-    }
-  }
-  if (start >= 0) candidate = candidate.slice(start);
-  const lastComplete = candidate.lastIndexOf("},");
-  if (lastComplete > 0) {
-    try {
-      const parsed = JSON.parse(`${candidate.slice(0, lastComplete + 1)}]}`) as { intelligence?: unknown[] };
-      return Array.isArray(parsed.intelligence)
-        ? parsed.intelligence.filter((item): item is Record<string, unknown> =>
-          Boolean(item) && typeof item === "object" && !Array.isArray(item))
-        : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
 
 function strings(value: unknown, max = 8): string[] {
   return Array.isArray(value)
@@ -233,13 +201,14 @@ export async function analyzeOperations(
 
 只保留会明确影响该国跨境电商经营环境的已发生事实或已公布政策：平台佣金和交易费、卖家规则、支付方式、物流履约、商品合规、关税与海关、税务、进出口准入、法规合规、宏观经济、通胀与汇率、消费能力、跨境支付、物流港口、供应链、政治或社会事件造成的经营影响、电商基础设施。普通政治新闻、官员讲话、个股新闻、没有明确电商因果关系的GDP报道全部忽略。
 
-不要推荐商品。不要补充证据中没有的事实。没有明确近期发布日期、生效日期或具体变化内容的帮助中心常驻页面只能作为背景，不能单独生成情报。同一平台、国家、政策类型、生效日期和费率变化必须合并成一条，不能因为不同网站标题不同而重复输出。转载同一篇原稿不能假装成独立证据。source_url和source_urls中的每个URL都必须逐字复制下方证据URL；优先把平台官方URL放在source_url，无法找到可验证URL就不要输出。category只能是：平台规则与费用、关税与海关、税务与财政、法规与合规、宏观经济、汇率与支付、消费与零售、物流与履约、供应链、政治与经营安全、电商基础设施、其他经营环境。若属于平台变化，platform只能是Shopee、Lazada、TikTok Shop、Mercado Libre、其他平台；policy_type只能是佣金与交易费、支付方式、物流与履约、促销与流量、商品与合规、账户与处罚、入驻与店铺、平台服务、其他平台变化；policy_subject填写稳定简短的变化主题。每条输出：title, category, platform(不属于平台变化则空), policy_type, policy_subject, direction(利好/利空/混合/中性), impact_score(0-100), urgency(立即处理/近期关注/长期观察), effective_date(YYYY-MM-DD或空), impact_scope, affected_dimensions(数组), affected_categories(数组), business_impact, recommended_actions(数组), source_url, source_urls(同一事实的独立证据URL数组), confidence(0-100)。只输出纯JSON：{"intelligence":[]}，最多12条，影响分低于40不要输出。
+不要推荐商品。不要补充证据中没有的事实。没有明确近期发布日期、生效日期或具体变化内容的帮助中心常驻页面只能作为背景，不能单独生成情报。同一平台、国家、政策类型、生效日期和费率变化必须合并成一条，不能因为不同网站标题不同而重复输出。转载同一篇原稿不能假装成独立证据。source_url和source_urls中的每个URL都必须逐字复制下方证据URL；优先把平台官方URL放在source_url，无法找到可验证URL就不要输出。category只能是：平台规则与费用、关税与海关、税务与财政、法规与合规、宏观经济、汇率与支付、消费与零售、物流与履约、供应链、政治与经营安全、电商基础设施、其他经营环境。若属于平台变化，platform只能是Shopee、Lazada、TikTok Shop、Mercado Libre、Walmart、Amazon、其他平台；policy_type只能是佣金与交易费、支付方式、物流与履约、促销与流量、商品与合规、账户与处罚、入驻与店铺、平台服务、其他平台变化；policy_subject填写稳定简短的变化主题。每条输出：title, category, platform(不属于平台变化则空), policy_type, policy_subject, direction(利好/利空/混合/中性), impact_score(0-100), urgency(立即处理/近期关注/长期观察), effective_date(YYYY-MM-DD或空), impact_scope, affected_dimensions(数组), affected_categories(数组), business_impact, recommended_actions(数组), source_url, source_urls(同一事实的独立证据URL数组), confidence(0-100)。只输出纯JSON：{"intelligence":[]}，最多12条，影响分低于40不要输出。
 
 新闻证据：
 ${evidenceText.slice(0, 18000)}`;
     try {
-      const rawText = await callGeminiText(config, prompt);
-      const rawItems = jsonItems(rawText);
+      const response = await callGeminiResponse(config, prompt, { arrayField: "intelligence", onProgress: input.onProgress });
+      const rawText = response.text;
+      const rawItems = parseGeminiArray(rawText, "intelligence");
       const items = normalizeOperationItems(rawItems, country, region, countryEvidence, historyIds);
       return {
         items,
@@ -252,7 +221,7 @@ ${evidenceText.slice(0, 18000)}`;
           status: items.length ? "success" : "partial",
           item_count: items.length,
           request_payload: { evidence_count: countryEvidence.length },
-          response_payload: { text: rawText },
+          response_payload: { text: rawText, metadata: response.metadata },
           error: items.length ? undefined
             : rawItems.length
               ? "Gemini输出了候选内容，但没有通过来源URL或必填字段校验"
@@ -269,6 +238,7 @@ ${evidenceText.slice(0, 18000)}`;
           source_name: config.gemini_model,
           request_key: `operations:gemini:${country}`,
           status: "failed",
+          response_payload: geminiFailurePayload(error),
           item_count: 0,
           error: error instanceof Error ? error.message : String(error),
         } satisfies SourceExecutionRecord,

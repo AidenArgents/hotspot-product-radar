@@ -34,13 +34,14 @@ export function extractEvidence(branches: BranchResult[]): EvidenceItem[] {
       const payload = execution.response_payload as Record<string, unknown> | undefined;
       if (!payload || execution.status === "failed") continue;
       if (execution.source_kind === "tavily" && execution.country) {
-        for (const raw of Array.isArray(payload.valid) ? payload.valid : []) {
+        const results = Array.isArray(payload.valid) ? payload.valid : Array.isArray(payload.results) ? payload.results : [];
+        for (const raw of results) {
           const item = raw as Record<string, unknown>;
           addEvidence(output, {
             country: execution.country,
             publisher: execution.source_name ?? "当地媒体",
             acquisition_method: "Tavily Search API",
-            source_kind: "tavily",
+            source_kind: execution.source_kind,
             title: String(item.title ?? ""),
             summary: String(item.content ?? ""),
             url: String(item.url ?? ""),

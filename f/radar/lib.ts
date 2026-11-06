@@ -12,6 +12,8 @@ export const TARGET_COUNTRIES = Object.freeze(
     .flatMap((items) => [...items]),
 );
 
+export const TARGET_REGIONS = Object.freeze(Object.keys(SOURCE_CATALOG.regions));
+
 export function todayIso(now = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
@@ -102,6 +104,8 @@ export function normalizeDate(value: unknown): string | undefined {
 }
 
 const TARGET_COUNTRY_ALIASES: Record<string, string> = {
+  "美国": "美国", "美國": "美国", "美利坚合众国": "美国",
+  "united states": "美国", "united states of america": "美国", usa: "美国", us: "美国", "u.s.": "美国",
   "越南": "越南", vietnam: "越南",
   "泰国": "泰国", thailand: "泰国",
   "印尼": "印尼", "印度尼西亚": "印尼", indonesia: "印尼",

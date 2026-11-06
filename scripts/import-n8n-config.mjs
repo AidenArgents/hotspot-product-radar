@@ -100,12 +100,13 @@ importedCountries["新加坡"].media = importedCountries["新加坡"].media
   .filter(([domain]) => domain !== "todayonline.com");
 
 const sourceCatalog = {
-  regions: {
+  ...existingCatalog,
+  regions: existingCatalog.regions ?? {
     东南亚: ["越南", "泰国", "印尼", "菲律宾", "马来西亚", "新加坡"],
     拉美: ["巴西", "墨西哥"],
   },
-  countries: importedCountries,
-  sports_searches: JSON.parse(sportsMatch[1]),
+  countries: { ...importedCountries, ...existingCatalog.countries },
+  sports_searches: existingCatalog.sports_searches ?? JSON.parse(sportsMatch[1]),
   // 数据源增强配置以仓库中的集中清单为准，重新导入 n8n 密钥时不会丢失。
   rss_feeds: existingCatalog.rss_feeds ?? [],
   official_event_sources: existingCatalog.official_event_sources ?? [],
@@ -116,8 +117,7 @@ const sourceCatalog = {
     max_items: 40,
   },
   holiday_fallbacks: existingCatalog.holiday_fallbacks ?? {},
-  optional_sources: existingCatalog.optional_sources ?? [],
-  google_news_queries: []
+  optional_sources: existingCatalog.optional_sources ?? []
 };
 
 const configDir = path.join(projectRoot, "config");

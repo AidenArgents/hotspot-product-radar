@@ -1,5 +1,6 @@
 import { collectMedia } from "./collect_media.ts";
 import { collectWeb } from "./collect_web.ts";
+import { assertGeminiProxyAvailable } from "./gemini_client.ts";
 import { collectOperationsOfficial } from "./collect_operations_official.ts";
 import { collectPlatformIntelligence } from "./collect_platform_intelligence.ts";
 import {
@@ -76,6 +77,7 @@ export async function runOperationsScan(
     evidenceMode = reuseShared && reuseOfficial && reusePlatform ? "reused" : "fresh";
     await startOperationRun(database, runId, input, evidenceMode);
     started = true;
+    await assertGeminiProxyAvailable(config.https_proxy || "");
 
     if (reuseShared) {
       onProgress?.(`复用最近3小时的${evidence.length}条新闻证据`);

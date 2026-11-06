@@ -1,5 +1,5 @@
 import { SOURCE_CATALOG } from "./source_catalog.ts";
-import { callGemini } from "./gemini.ts";
+import { callGemini, geminiFailurePayload } from "./gemini.ts";
 import { fetchCountryHolidays } from "./holidays.ts";
 import {
   countriesForTarget,
@@ -86,7 +86,7 @@ ${results.join("\n")}`;
       const geminiKey = `holiday:gemini:${country.code}`;
       context.onProgress?.(`正在通过 Gemini 智能分析假日价值: ${countryName}`);
       try {
-        const response = await callGemini(config, prompt);
+        const response = await callGemini(config, prompt, context.onProgress);
         for (const event of response.events) {
           event.country = countryName;
           event.region = country.region;
@@ -102,7 +102,7 @@ ${results.join("\n")}`;
           status: response.events.length ? "success" : "partial",
           item_count: response.events.length,
           request_payload: { prompt },
-          response_payload: { text: response.rawText },
+          response_payload: { text: response.rawText, metadata: response.metadata },
         });
         return {
           countryName,
@@ -119,6 +119,7 @@ ${results.join("\n")}`;
           request_key: geminiKey,
           status: "failed",
           request_payload: { prompt },
+          response_payload: geminiFailurePayload(error),
           error: error instanceof Error ? error.message : String(error),
         });
         return { countryName, events, executions, status: `${countryName}: Gemini错误` };

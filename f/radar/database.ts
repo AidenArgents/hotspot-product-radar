@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS source_executions (
 CREATE TABLE IF NOT EXISTS sports_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   run_id TEXT NOT NULL REFERENCES scan_runs(id) ON DELETE CASCADE,
-  source_name TEXT NOT NULL, query TEXT NOT NULL, answer TEXT,
+  source_name TEXT NOT NULL, query TEXT NOT NULL, answer TEXT, country TEXT,
+  scope TEXT NOT NULL DEFAULT 'global',
   results TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS notifications (
@@ -135,6 +136,10 @@ export function connectDatabase(config: RadarConfig): RadarDatabase {
 
 export async function ensureSchema(database: RadarDatabase): Promise<void> {
   database.exec(SCHEMA_SQL);
+  // 兼容现有体育历史记录；仅在缺列时补列，旧记录仍属于全球共享。
+  const sportsColumns = new Set(database.prepare("PRAGMA table_info(sports_results)").all().map((column) => column.name));
+  if (!sportsColumns.has("country")) database.exec("ALTER TABLE sports_results ADD COLUMN country TEXT");
+  if (!sportsColumns.has("scope")) database.exec("ALTER TABLE sports_results ADD COLUMN scope TEXT NOT NULL DEFAULT 'global'");
 }
 
 export async function startRun(
@@ -267,11 +272,11 @@ export async function recordSports(
   branch: BranchResult,
 ): Promise<void> {
   const statement = database.prepare(`
-    INSERT INTO sports_results (run_id, source_name, query, answer, results)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO sports_results (run_id, source_name, query, answer, results, country, scope)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   for (const item of branch.sports_results ?? []) {
-    statement.run(runId, item.source_name, item.query, item.answer ?? null, JSON.stringify(item.results));
+    statement.run(runId, item.source_name, item.query, item.answer ?? null, JSON.stringify(item.results), item.country ?? null, item.scope ?? (item.country ? "country" : "global"));
   }
 }
 

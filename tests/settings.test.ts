@@ -9,10 +9,6 @@ function fixture(): RadarConfig {
     gemini_api_key: "gemini-secret-value",
     gemini_api_key_2: "gemini-secret-value-two",
     tavily_api_key: "tavily-secret-value",
-    search_engine: "tavily",
-    google_search_api_key: "google-search-key",
-    google_search_cx_a: "cx-aaa",
-    google_search_cx_b: "cx-bbb",
     spreadsheet_id: "sheet-id",
     google_service_account_email: "radar@example.test",
     google_private_key: "private-key-value",
@@ -103,6 +99,20 @@ test("密钥可替换或明确清除，端口变化要求重启", () => {
   assert.equal(result.next.dingtalk_secret_2, "");
   assert.equal(result.next.admin_password, "new-admin-password");
   assert.equal(result.restart_required, true);
+});
+
+test("美国范围设置保留Tavily和所有Gemini配置", () => {
+  const current = fixture();
+  const updated = applySettingsUpdate(current, {
+    values: { enabled_countries: ["美国"], default_target_region: "北美", default_operations_target_region: "北美" },
+    secret_values: { tavily_api_key: "" },
+  }).next;
+  for (const field of ["tavily_api_key", "gemini_api_key", "gemini_api_key_2", "gemini_model"] as const) {
+    assert.equal(updated[field], current[field]);
+  }
+  assert.deepEqual(updated.enabled_countries, ["美国"]);
+  assert.equal(updated.default_target_region, "北美");
+  assert.equal(updated.default_operations_target_region, "北美");
 });
 
 test("页面设置拒绝越界时间和过短管理员密码", () => {

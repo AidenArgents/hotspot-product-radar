@@ -13,6 +13,7 @@ export interface GdacsAlert {
 }
 
 const TARGET_ISO3: Record<string, string> = {
+  USA: "美国",
   VNM: "越南",
   THA: "泰国",
   IDN: "印尼",

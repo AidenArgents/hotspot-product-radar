@@ -7,6 +7,29 @@ import { inferPlatformCountries } from "../f/radar/collect_platform_intelligence
 import { normalizeOperationItems, platformIntelligenceId, verificationForEvidence } from "../f/radar/operations_analyzer.ts";
 import { withinOperationWindow } from "../f/radar/operations_window.ts";
 import type { EvidenceItem } from "../f/radar/types.ts";
+import { SOURCE_CATALOG } from "../f/radar/source_catalog.ts";
+
+test("美国四个平台保留各自官方入口，分析结果保留Walmart平台", () => {
+  const sources = SOURCE_CATALOG.platform_official_sources.filter((source) => source.country === "美国");
+  assert.deepEqual(sources.map((source) => source.platform).sort(), ["Amazon", "Walmart", "eBay", "TikTok Shop"].sort());
+  const walmart = sources.find((source) => source.platform === "Walmart")!;
+  assert.equal(walmart.domain, "marketplacelearn.walmart.com");
+  const evidence: EvidenceItem = {
+    evidence_id: "walmart-official", country: "美国", region: "北美", publisher: walmart.name,
+    acquisition_method: "官方搜索", source_kind: "platform-official",
+    title: "Walmart Marketplace seller fee policy update", summary: "Walmart announced updated seller fees.",
+    url: "https://marketplacelearn.walmart.com/guides/walmart-seller-fee-update",
+    published_at: "2026-11-02", authority: "平台官方公告",
+  };
+  const result = normalizeOperationItems([{
+    title: "Walmart美国卖家费用政策更新", platform: "Walmart", policy_type: "佣金与交易费",
+    policy_subject: "卖家费用调整", business_impact: "这项费用变更将影响卖家的经营成本和定价。",
+    source_url: evidence.url, source_urls: [evidence.url], impact_score: 80, direction: "中性", urgency: "近期关注",
+  }], "美国", "北美", [evidence], new Set());
+  assert.equal(result.length, 1);
+  assert.equal(result[0].platform, "Walmart");
+  assert.equal(result[0].verification_status, "已确认");
+});
 
 test("Tavily结果必须匹配域名、日期并去重", () => {
   const response = {
@@ -80,7 +103,7 @@ test("RSS保留近期文章并淘汰过期与重复标题", () => {
   assert.match(parsed.articles[0].line, /2026-08-11.*Useful details.*https:\/\/example.com\/1/);
 });
 
-test("GDACS仅保留目标8国近期当前事件并按事件ID去重", () => {
+test("GDACS支持美国及原有目标国家并按事件ID去重", () => {
   const item = (iso3: string, id: string, current = "true") => `<item>
     <title>Orange flood alert in target</title><description>Flood warning details</description>
     <link>https://www.gdacs.org/report.aspx?eventid=${id}</link><pubDate>Tue, 11 Aug 2026 10:00:00 GMT</pubDate>
@@ -93,8 +116,9 @@ test("GDACS仅保留目标8国近期当前事件并按事件ID去重", () => {
     maxAgeDays: 14,
     maxItems: 40,
   });
-  assert.equal(parsed.alerts.length, 1);
+  assert.equal(parsed.alerts.length, 2);
   assert.equal(parsed.alerts[0].country, "泰国");
+  assert.equal(parsed.alerts[1].country, "美国");
   assert.equal(parsed.duplicate, 1);
 });
 

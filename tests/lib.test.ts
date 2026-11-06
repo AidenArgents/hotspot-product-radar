@@ -17,12 +17,17 @@ test("三条业务线路选择规则与原流程一致", () => {
   assert.equal(isLineSelected("媒体+网页", "网页"), true);
 });
 
-test("目标区域仍是东南亚 6 国与拉美 2 国", () => {
+test("北美美国排在东南亚和拉美前，所有地区遵守启用国家", () => {
+  assert.deepEqual(countriesForTarget("北美"), ["美国"]);
+  assert.equal(countriesForTarget("全部")[0], "美国");
   assert.deepEqual(countriesForTarget("东南亚"), [
     "越南", "泰国", "印尼", "菲律宾", "马来西亚", "新加坡",
   ]);
   assert.deepEqual(countriesForTarget("拉美"), ["巴西", "墨西哥"]);
-  assert.equal(countriesForTarget("全部").length, 8);
+  assert.equal(countriesForTarget("全部").length, 9);
+  assert.deepEqual(countriesForTarget("全部", ["美国"]), ["美国"]);
+  assert.deepEqual(countriesForTarget("东南亚", ["美国"]), []);
+  assert.deepEqual(countriesForTarget("拉美", ["美国"]), []);
   assert.deepEqual(
     countriesForTarget("东南亚", ["越南", "泰国", "巴西"]),
     ["越南", "泰国"],
@@ -54,7 +59,9 @@ test("日期归一化与并发映射顺序稳定", async () => {
   assert.deepEqual(output, [30, 1, 10]);
 });
 
-test("网页线路国家名称统一为系统的8国标准", () => {
+test("网页线路国家名称统一为目标国家标准", () => {
+  assert.equal(normalizeTargetCountry("United States"), "美国");
+  assert.equal(normalizeTargetCountry("USA"), "美国");
   assert.equal(normalizeTargetCountry("印度尼西亚"), "印尼");
   assert.equal(normalizeTargetCountry("Indonesia"), "印尼");
   assert.equal(normalizeTargetCountry("México"), "墨西哥");

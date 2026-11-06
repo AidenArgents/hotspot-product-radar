@@ -4,7 +4,7 @@ import { fetchJson } from "./http.ts";
 
 const LINE_TITLES = {
   假日: "假日API",
-  媒体: "Tavily媒体",
+  媒体: "媒体搜索",
   网页: "网页抓取",
   运营: "运营情报",
 } as const;
@@ -15,7 +15,10 @@ export function buildDingTalkMessage(
   branch: BranchResult,
   events: RadarEvent[],
 ): string {
-  let message = `🎯 热点选品雷达v7·${LINE_TITLES[branch.line]} · ${context.current_date}\n`;
+  const lineTitle = branch.line === "媒体"
+    ? "Tavily媒体"
+    : LINE_TITLES[branch.line];
+  let message = `🎯 热点选品雷达v7·${lineTitle} · ${context.current_date}\n`;
   message += `📍 ${context.target_region} | ${context.time_range}\n`;
   message += `📊 ${events.length}个事件 | ${branch.analysis}\n`;
   message += `════════════════════════════\n\n`;
@@ -75,13 +78,15 @@ export function buildOperationsDingTalkMessage(
 }
 
 function signedUrl(token: string, secret: string): string {
+  const baseUrl = `https://oapi.dingtalk.com/robot/send?access_token=${encodeURIComponent(token)}`;
+  if (!secret?.trim()) return baseUrl;
   const timestamp = Date.now();
   const signature = crypto
     .createHmac("sha256", secret)
     .update(`${timestamp}\n${secret}`)
     .digest("base64");
   return (
-    `https://oapi.dingtalk.com/robot/send?access_token=${encodeURIComponent(token)}` +
+    baseUrl +
     `&timestamp=${timestamp}&sign=${encodeURIComponent(signature)}`
   );
 }
@@ -89,6 +94,7 @@ function signedUrl(token: string, secret: string): string {
 export async function sendDingTalk(
   config: RadarConfig,
   content: string,
+  robotIndices?: number[],
 ): Promise<Array<{ robotIndex: number; ok: boolean; response?: unknown; error?: string }>> {
   if (!content || content.length < 50) return [];
   const robots = [
@@ -96,7 +102,10 @@ export async function sendDingTalk(
     [config.dingtalk_token_2, config.dingtalk_secret_2],
   ] as const;
   return Promise.all(
-    robots.map(async ([token, secret], index) => {
+    robots.flatMap(([token, secret], index) => {
+      if (robotIndices && !robotIndices.includes(index + 1)) return [];
+      if (!token?.trim() || /^YOUR_/.test(token.trim())) return [];
+      return [(async () => {
       try {
         const response = await fetchJson<{ errcode?: number; errmsg?: string }>(
           signedUrl(token, secret),
@@ -105,7 +114,7 @@ export async function sendDingTalk(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ msgtype: "text", text: { content } }),
             timeoutMs: 10000,
-            retries: 1,
+            retries: 0,
           },
         );
         const ok = response.errcode === 0;
@@ -122,6 +131,7 @@ export async function sendDingTalk(
           error: error instanceof Error ? error.message : String(error),
         };
       }
+      })()];
     }),
   );
 }

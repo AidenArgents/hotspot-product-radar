@@ -1,6 +1,7 @@
 import { collectHoliday } from "./collect_holiday.ts";
 import { collectMedia } from "./collect_media.ts";
 import { collectWeb } from "./collect_web.ts";
+import { assertGeminiProxyAvailable } from "./gemini_client.ts";
 import {
   connectDatabase,
   ensureSchema,
@@ -31,13 +32,9 @@ import type {
 
 function validateConfig(config: RadarConfig): void {
   const required: Array<keyof RadarConfig> = [
-    "tavily_api_key",
     "database_file",
-    "dingtalk_token_1",
-    "dingtalk_secret_1",
-    "dingtalk_token_2",
-    "dingtalk_secret_2",
   ];
+  required.push("tavily_api_key");
   const missing = required.filter((key) => !config[key]);
   if (!config.gemini_api_key && !config.gemini_api_key_2) {
     missing.unshift("gemini_api_key");
@@ -170,6 +167,7 @@ export async function runScan(
     await ensureSchema(sql);
     await startRun(sql, runId, input);
     started = true;
+    await assertGeminiProxyAvailable(config.https_proxy || "");
 
     const databaseHistory = await loadHistoryIds(sql);
     const sheetHistory = syncGoogleSheets

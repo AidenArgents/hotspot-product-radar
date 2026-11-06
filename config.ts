@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { RadarConfig } from "./f/radar/types.ts";
 import { TARGET_COUNTRIES } from "./f/radar/lib.ts";
+import { DEFAULT_CALENDAR_URL } from "./f/radar/calendar_feed.ts";
 
 export const PROJECT_ROOT = import.meta.dirname;
 export const CONFIG_FILE = path.join(PROJECT_ROOT, "config", "radar_config.local.json");
@@ -22,15 +23,26 @@ export function writeConfig(config: RadarConfig) {
 }
 
 export function loadConfig(): RadarConfig {
-  const config = readConfig();
+  const config = readConfig() as RadarConfig & Record<string, unknown>;
+  const obsoleteSearchFields = [
+    "search_engine",
+    "google_search_api_key",
+    "google_search_cx_a",
+    "google_search_cx_b",
+  ];
+  const hadObsoleteSearchFields = obsoleteSearchFields.some((field) => Object.hasOwn(config, field));
+  for (const field of obsoleteSearchFields) delete config[field];
+  if (hadObsoleteSearchFields) writeConfig(config);
   return {
     ...config,
     admin_password: config.admin_password ?? "",
-    search_engine: (config.search_engine === "tavily" || config.search_engine === "google") ? config.search_engine : "google",
-    google_search_api_key: config.google_search_api_key ?? "",
-    google_search_cx_a: config.google_search_cx_a ?? "",
-    google_search_cx_b: config.google_search_cx_b ?? "",
     gemini_api_key_2: config.gemini_api_key_2 ?? "",
+    calendar_enabled: config.calendar_enabled ?? false,
+    calendar_url: config.calendar_url || DEFAULT_CALENDAR_URL,
+    calendar_hour: config.calendar_hour ?? 9,
+    calendar_minute: config.calendar_minute ?? 0,
+    calendar_start_date: config.calendar_start_date || "",
+    calendar_offsets: config.calendar_offsets ?? [7, 3, 0],
     google_sheet_name: config.google_sheet_name || "产品情报",
     operations_google_sheet_name: config.operations_google_sheet_name || "运营情报",
     product_report_url: config.product_report_url

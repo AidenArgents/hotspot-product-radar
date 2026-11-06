@@ -18,7 +18,7 @@ export async function main(config: RadarConfig, run_id: string) {
       ORDER BY source_line, source_kind, country, source_name
     `).all(run_id);
     const sports = database.prepare(`
-      SELECT source_name, query, answer, results, created_at
+      SELECT source_name, query, answer, results, country, scope, created_at
       FROM sports_results WHERE run_id = ? ORDER BY id
     `).all(run_id).map((row) => ({ ...row, results: parse(row.results, []) }));
     const notifications = database.prepare(`

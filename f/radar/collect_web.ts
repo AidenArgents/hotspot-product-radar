@@ -1,5 +1,5 @@
 import { SOURCE_CATALOG } from "./source_catalog.ts";
-import { callGemini } from "./gemini.ts";
+import { callGemini, geminiFailurePayload } from "./gemini.ts";
 import { parseGdacs } from "./gdacs.ts";
 import { fetchText } from "./http.ts";
 import { countriesForTarget, dedupeEvents, isLineSelected, mapLimit, normalizeDate, normalizeTargetCountry } from "./lib.ts";
@@ -20,6 +20,7 @@ type RssFeedConfig = {
 };
 
 const GDACS_ISO3_BY_COUNTRY: Record<string, string> = {
+  美国: "USA",
   越南: "VNM", 泰国: "THA", 印尼: "IDN", 菲律宾: "PHL",
   马来西亚: "MYS", 新加坡: "SGP", 巴西: "BRA", 墨西哥: "MEX",
 };
@@ -47,7 +48,7 @@ export async function collectWeb(
     };
   }
 
-  const enabledCountries = countriesForTarget("全部", config.enabled_countries);
+  const enabledCountries = countriesForTarget(context.target_region, config.enabled_countries);
   const enabledCountrySet = new Set(enabledCountries);
   const seenTitles = new Set<string>();
   context.onProgress?.('正在收集网页 RSS 资讯...');
@@ -87,7 +88,7 @@ export async function collectWeb(
             max_age_days: gdacsConfig.max_age_days,
           },
           response_payload: parsed,
-          error: parsed.alerts.length ? undefined : "GDACS当前没有目标8国的近期有效预警",
+          error: parsed.alerts.length ? undefined : "GDACS当前没有启用国家的近期有效预警",
         } satisfies SourceExecutionRecord,
       };
     } catch (error) {
@@ -168,66 +169,10 @@ export async function collectWeb(
   );
   const gdacsRun = await gdacsPromise;
 
-  const googleNewsQueries = SOURCE_CATALOG.google_news_queries as readonly {
-    name: string;
-    query: string;
-  }[];
-  context.onProgress?.('正在收集 Google 网页新闻...');
-  const googleNewsRuns = await mapLimit(
-    googleNewsQueries,
-    config.site_concurrency,
-    async (item) => {
-      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(item.query)}&hl=zh-CN&gl=CN&ceid=CN:zh-Hans`;
-      try {
-        const xml = await fetchText(url, {
-          headers: { "User-Agent": "Mozilla/5.0 RSS Reader" },
-          timeoutMs: Math.max(config.request_timeout_ms, 30000),
-          retries: 1,
-        });
-        const parsed = parseRss(xml, {
-          sourceName: `GoogleNews-${item.name}`,
-          currentDate: context.current_date,
-          maxAgeDays: 14,
-          seenTitles,
-          maxItems: 20,
-        });
-        const articles = parsed.articles.map((article) => article.line);
-        return {
-          articles,
-          execution: {
-            source_line: "网页",
-            source_kind: "google-news-rss",
-            source_name: item.name,
-            request_key: `web:google-news:${item.name}`,
-            status: articles.length ? "success" : "partial",
-            item_count: articles.length,
-            request_payload: { query: item.query, url },
-            response_payload: parsed,
-            error: articles.length ? undefined : "Google News RSS没有近期有效结果",
-          } satisfies SourceExecutionRecord,
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return {
-          articles: [],
-          execution: {
-            source_line: "网页",
-            source_kind: "google-news-rss",
-            source_name: item.name,
-            request_key: `web:google-news:${item.name}`,
-            status: "failed",
-            request_payload: { query: item.query, url },
-            error: message,
-          } satisfies SourceExecutionRecord,
-        };
-      }
-    },
-  );
-
-  const allArticles = [gdacsRun, ...feedRuns, ...googleNewsRuns].flatMap(
+  const allArticles = [gdacsRun, ...feedRuns].flatMap(
     (run) => run.articles,
   );
-  const executions: SourceExecutionRecord[] = [gdacsRun, ...feedRuns, ...googleNewsRuns].map(
+  const executions: SourceExecutionRecord[] = [gdacsRun, ...feedRuns].map(
     (run) => run.execution,
   );
   const validArticles = allArticles;
@@ -250,7 +195,6 @@ export async function collectWeb(
     ...gdacsRun.articles.slice(0, 8),
     ...feedRuns.filter((run) => run.official).flatMap((run) => run.articles.slice(0, 4)),
     ...feedRuns.filter((run) => !run.official).flatMap((run) => run.articles.slice(0, 2)),
-    ...googleNewsRuns.flatMap((run) => run.articles.slice(0, 3)),
   ];
   if (!analyzeProducts) {
     return {
@@ -264,23 +208,23 @@ export async function collectWeb(
   }
   const prompt = `你是跨境电商选品专家。今天：${context.current_date}，时间范围：${context.time_range}
 
-数据来源：官方通讯社RSS + 现有RSS新闻订阅 + GDACS结构化灾害预警 + Google新闻
+数据来源：官方通讯社RSS + 现有RSS新闻订阅 + GDACS结构化灾害预警
 目标国家：${targetCountries}（只分析与这${enabledCountries.length}个已启用国家相关的新闻）
 规则：不卖服装鞋类！所有内容用中文。
 
 从以下新闻中，筛选与上述已启用国家相关的热点，找出有跨境电商选品价值的事件。
-对每个事件输出：event_id, event_name(中文), event_type, country(中文), region(东南亚或拉美), currency, date(YYYY-MM-DD), stage(预告期/进行中/已过/节后余温), source("RSS/新闻"), ecommerce_score(0-100), products(3个,含name中文/category/price_range当地货币/keywords_en[]/keywords_local[]), best_listing_time(中文), why_sellable(中文)
+对每个事件输出：event_id, event_name(中文), event_type, country(中文，仅限${enabledCountries.join("、")}), region(北美、东南亚或拉美，按国家填写), currency, date(YYYY-MM-DD), stage(预告期/进行中/已过/节后余温), source("RSS/新闻"), ecommerce_score(0-100), products(3个,含name中文/category/price_range当地货币/keywords_en[]/keywords_local[]), best_listing_time(中文), why_sellable(中文)
 
 如果没有与这些已启用国家相关的新闻，输出 {"events": []}
 只输出纯JSON，直接以 {"events":[ 开头。最多10个事件。
 
-新闻与预警数据(RSS ${SOURCE_CATALOG.rss_feeds.length}源 + GDACS + GoogleNews ${SOURCE_CATALOG.google_news_queries.length}源, 有效${validArticles.length}条，本次均衡送入${promptLines.length}条)：
+新闻与预警数据(RSS ${SOURCE_CATALOG.rss_feeds.length}源 + GDACS, 有效${validArticles.length}条，本次均衡送入${promptLines.length}条)：
 ${promptLines.join("\n").slice(0, 15000)}`;
 
   context.onProgress?.('正在通过 Gemini 分析全局新闻热点...');
 
   try {
-    const response = await callGemini(config, prompt);
+    const response = await callGemini(config, prompt, context.onProgress);
     const countryConfigs = SOURCE_CATALOG.countries as unknown as Record<
       string,
       { region: string; currency: string }
@@ -307,7 +251,7 @@ ${promptLines.join("\n").slice(0, 15000)}`;
       status: response.events.length ? "success" : "partial",
       item_count: response.events.length,
       request_payload: { prompt },
-      response_payload: { text: response.rawText },
+      response_payload: { text: response.rawText, metadata: response.metadata },
     });
     return {
       line: "网页",
@@ -315,7 +259,7 @@ ${promptLines.join("\n").slice(0, 15000)}`;
       events,
       top10_events: events.slice(0, 10),
       analysis:
-        `RSS ${SOURCE_CATALOG.rss_feeds.length}源+GDACS+GNews ${SOURCE_CATALOG.google_news_queries.length}源` +
+        `RSS ${SOURCE_CATALOG.rss_feeds.length}源+GDACS` +
         ` → ${validArticles.length}条有效证据 → ${events.length}个新事件`,
       executions,
     };
@@ -328,6 +272,7 @@ ${promptLines.join("\n").slice(0, 15000)}`;
       request_key: "web:gemini:all-target-countries",
       status: "failed",
       request_payload: { prompt },
+      response_payload: geminiFailurePayload(error),
       error: message,
     });
     return {

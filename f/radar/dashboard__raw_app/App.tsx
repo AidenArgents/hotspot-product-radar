@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { backend, backendAsync, waitJob } from "./api";
 import SettingsPanel, { type SettingsPanelHandle } from "./SettingsPanel";
 import OperationsPanel, { type OperationsPanelHandle } from "./OperationsPanel";
+import sourceCatalog from "../../../config/source_catalog.json";
 
 type Product = {
   name?: string;
@@ -287,6 +288,7 @@ export default function App() {
         <div className="module-rail-mark">R</div>
         <button className={module === "product" ? "active" : ""} onClick={() => setModule("product")}><span>◇</span><b>产品情报</b></button>
         <button className={module === "operations" ? "active" : ""} onClick={() => setModule("operations")}><span>▦</span><b>运营情报</b></button>
+        <a className="calendar-rail-link" href="https://aidenargents.github.io/Tools/%E7%BE%8E%E5%9B%BD%E7%94%B5%E5%95%86%E5%A4%87%E8%B4%A7%E6%97%A5%E5%8E%86.html" target="_blank" rel="noreferrer"><span>▣</span><b>备货看板 ↗</b></a>
       </aside>
       <header className="topbar">
         <div className="brand">
@@ -348,7 +350,7 @@ export default function App() {
             <section className="filters">
               <label className="search"><span>⌕</span><input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="搜索事件或推荐理由" /></label>
               <select value={filters.region} onChange={(e) => setFilters({ ...filters, region: e.target.value, country: "" })}>
-                <option value="">全部区域</option><option>东南亚</option><option>拉美</option>
+                {Object.keys(sourceCatalog.regions).map((region) => <option key={region}>{region}</option>)}<option value="">全部区域</option>
               </select>
               <select value={filters.country} onChange={(e) => setFilters({ ...filters, country: e.target.value })}>
                 <option value="">全部国家</option>
@@ -435,7 +437,7 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                  {runDetail.sports.length > 0 && <div className="sports-block"><h3>体育搜索保留结果</h3>{runDetail.sports.map((sport: any) => <article key={sport.query}><b>{sport.source_name}</b><p>{sport.answer || sport.query}</p></article>)}</div>}
+                  {runDetail.sports.length > 0 && <div className="sports-block"><h3>体育搜索与国家归属</h3><p>本国材料送入对应国家分析；全球材料需本国证据佐证。搜到线索不等于一定生成产品机会。</p>{runDetail.sports.map((sport: any, index: number) => <article key={`${sport.country ?? "global"}-${sport.query}-${index}`}><b>{sport.country || "全球共享"} · {sport.source_name}</b><p>{sport.answer || sport.query}</p>{sport.results.map((item: any, resultIndex: number) => <p key={`${item.url}-${resultIndex}`}><a href={item.url} target="_blank" rel="noreferrer">{item.title || item.url}</a>{item.content && <span> · {item.content}</span>}</p>)}</article>)}</div>}
                 </>
               )}
             </div>
@@ -467,7 +469,7 @@ export default function App() {
           <section className="scan-modal" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setScanOpen(false)} disabled={scanning}>×</button>
             <p className="eyebrow">MANUAL RUN</p><h2>启动一次完整扫描</h2><p>会按原流程运行所选线路，并继续写 Google Sheets、发送对应的独立钉钉消息。</p>
-            <label>目标区域<select value={scanForm.target_region} onChange={(e) => setScanForm({ ...scanForm, target_region: e.target.value })}><option>全部</option><option>东南亚</option><option>拉美</option></select></label>
+            <label>目标区域<select value={scanForm.target_region} onChange={(e) => setScanForm({ ...scanForm, target_region: e.target.value })}>{Object.keys(sourceCatalog.regions).map((region) => <option key={region}>{region}</option>)}<option>全部</option></select></label>
             <label>时间范围<select value={scanForm.time_range} onChange={(e) => setScanForm({ ...scanForm, time_range: e.target.value })}><option>今天</option><option>近3天</option><option>本周</option><option>本月</option><option>未来3个月</option></select></label>
             <label>数据线路<select value={scanForm.data_lines} onChange={(e) => setScanForm({ ...scanForm, data_lines: e.target.value })}><option>全部</option><option>媒体+网页</option><option>仅假日</option><option>仅媒体</option><option>仅网页</option><option>假日+网页</option><option>假日+媒体</option></select></label>
             <button className="primary scan-submit" disabled={scanning} onClick={startScan}>{scanning ? scanProgress : "开始扫描"}</button>

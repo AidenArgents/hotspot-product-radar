@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ChangeEvent } from "react";
 import { backend } from "./api";
 import sourceCatalog from "../../../config/source_catalog.json";
+import CalendarSettingsCard, { type CalendarSettingsValues } from "./CalendarSettingsCard";
 
-type SettingsValues = {
+type SettingsValues = CalendarSettingsValues & {
   schedule_enabled: boolean;
   schedule_hour: number;
   schedule_minute: number;
@@ -10,9 +11,6 @@ type SettingsValues = {
   operations_schedule_hour: number;
   operations_schedule_minute: number;
   enabled_countries: string[];
-  search_engine: "tavily" | "google";
-  google_search_cx_a: string;
-  google_search_cx_b: string;
   default_target_region: string;
   default_time_range: string;
   default_manual_data_lines: string;
@@ -41,7 +39,6 @@ type SecretField =
   | "gemini_api_key"
   | "gemini_api_key_2"
   | "tavily_api_key"
-  | "google_search_api_key"
   | "google_private_key"
   | "dingtalk_token_1"
   | "dingtalk_secret_1"
@@ -78,6 +75,20 @@ const targetCountryGroups = Object.entries(sourceCatalog.regions) as Array<[stri
 const targetCountryNames = targetCountryGroups.flatMap(([, countries]) => countries);
 const targetCountrySet = new Set(targetCountryNames);
 
+function searchPreview(template: string, range: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  const end = new Date(`${today}T00:00:00Z`);
+  if (range === "今天") end.setUTCDate(end.getUTCDate() + 1);
+  else if (range === "近3天") end.setUTCDate(end.getUTCDate() + 3);
+  else if (range === "本周") end.setUTCDate(end.getUTCDate() + 7);
+  else if (range === "本月") end.setUTCMonth(end.getUTCMonth() + 1);
+  else end.setUTCMonth(end.getUTCMonth() + 3);
+  return template.replaceAll("${current_year}", today.slice(0, 4))
+    .replaceAll("${config.time_range}", range)
+    .replaceAll("${start_date}", today)
+    .replaceAll("${end_date}", end.toISOString().slice(0, 10));
+}
+
 function seconds(milliseconds: number) {
   return Number((milliseconds / 1000).toFixed(1));
 }
@@ -110,6 +121,10 @@ function SourceItem({
   authority,
   risk,
   health,
+  scopeStatus,
+  url,
+  urlLabel = "官方规则页",
+  query,
 }: {
   name: string;
   publisher: string;
@@ -117,16 +132,28 @@ function SourceItem({
   authority: string;
   risk: string;
   health?: SourceHealth;
+  scopeStatus?: string;
+  url?: string;
+  urlLabel?: string;
+  query?: string;
 }) {
   return (
     <article className="source-item">
-      <div className="source-item-head"><b>{name}</b><SourceHealthBadge health={health} /></div>
+      <div className="source-item-head">
+        <b>{name}</b>
+        <div className="source-item-badges">
+          {scopeStatus && <span className={`source-scope-status ${scopeStatus === "运行中" ? "source-scope-active" : scopeStatus === "备用配置" ? "source-scope-reserve" : scopeStatus === "部分启用" ? "source-scope-mixed" : "source-scope-paused"}`}>{scopeStatus}</span>}
+          <SourceHealthBadge health={health} />
+        </div>
+      </div>
       <dl>
         <div><dt>内容发布者</dt><dd>{publisher}</dd></div>
+        {url && <div><dt>{urlLabel}</dt><dd><a href={url} target="_blank" rel="noreferrer">查看来源页面</a></dd></div>}
         <div><dt>获取方式</dt><dd>{method}</dd></div>
         <div><dt>权威判断</dt><dd>{authority}</dd></div>
         <div><dt>延迟/卡顿/失真风险</dt><dd>{risk}</dd></div>
       </dl>
+      {query && <details className="source-query"><summary>查看搜索词</summary><p>{query}</p></details>}
       {health && <p className="source-last-run">最近运行：{sourceTime(health.run_started_at || health.finished_at)}{health.error ? ` · ${health.error}` : ""}</p>}
     </article>
   );
@@ -134,6 +161,17 @@ function SourceItem({
 
 const officialMediaDomains = new Set(["channelnewsasia.com", "world.thaipbs.or.th"]);
 const officialSportsDomains = new Set(["fifa.com", "the-afc.com", "uefa.com", "formula1.com", "olympics.com"]);
+
+function countryScopeStatus(country: string, enabledCountries: Set<string>) {
+  if (!targetCountrySet.has(country)) return "备用配置";
+  return enabledCountries.has(country) ? "运行中" : "已暂停";
+}
+
+function countriesScopeStatus(countries: string[], enabledCountries: Set<string>) {
+  const states = new Set(countries.map((country) => countryScopeStatus(country, enabledCountries)));
+  if (states.size > 1) return "部分启用";
+  return states.values().next().value ?? "备用配置";
+}
 
 const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, ref) {
   const [snapshot, setSnapshot] = useState<SettingsResponse | null>(null);
@@ -188,8 +226,8 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
   const latestSourceStatus = (kind: string, name: string) => sourceHealth
     .filter((item) => item.source_kind === kind && item.source_name === name)
     .sort((a, b) => String(b.run_started_at ?? "").localeCompare(String(a.run_started_at ?? "")))[0];
+  const searchLabel = "Tavily Search API";
   const enabledCountries = new Set(values?.enabled_countries ?? targetCountryNames);
-  const disabledCountries = targetCountryNames.filter((country) => !enabledCountries.has(country));
 
   function change<K extends keyof SettingsValues>(field: K, value: SettingsValues[K]) {
     setValues((current) => current ? { ...current, [field]: value } : current);
@@ -289,6 +327,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
       )}
 
       <div className="settings-grid">
+        <CalendarSettingsCard values={values} change={(patch) => setValues((current) => current ? { ...current, ...patch } : current)} password={adminPassword} setPassword={setAdminPassword} needsPassword={snapshot.admin_password_configured} />
         <article className="settings-card">
           <div className="settings-card-title"><span>01</span><div><h3>自动运行</h3><p>产品情报和运营情报分别定时，互不改变对方的分析逻辑。</p></div></div>
           <div className="country-scope-setting">
@@ -312,7 +351,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
                 </div>
               ))}
             </div>
-            <p>当前启用 {values.enabled_countries.length} 个国家{disabledCountries.length ? `；已暂停：${disabledCountries.join("、")}` : "；全部运行"}。</p>
+            <p>当前运行 {values.enabled_countries.length}/{targetCountryNames.length} 个目标国家；未勾选只会暂停采集，国家配置仍保留并完整显示在下方。</p>
           </div>
           <div className="setting-divider"><span>产品情报</span></div>
           <label className="toggle-field"><span><b>产品情报每日自动扫描</b><small>假日、媒体、网页三条产品线路</small></span><input type="checkbox" checked={values.schedule_enabled} onChange={(event) => change("schedule_enabled", event.target.checked)} /></label>
@@ -321,7 +360,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
             <label className="setting-field"><span>定时扫描线路</span><select value={values.default_schedule_data_lines} onChange={(event) => change("default_schedule_data_lines", event.target.value)}>{dataLineOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
           </div>
           <div className="setting-row three">
-            <label className="setting-field"><span>默认区域</span><select value={values.default_target_region} onChange={(event) => change("default_target_region", event.target.value)}><option>全部</option><option>东南亚</option><option>拉美</option></select></label>
+            <label className="setting-field"><span>默认区域</span><select value={values.default_target_region} onChange={(event) => change("default_target_region", event.target.value)}>{targetCountryGroups.map(([region]) => <option key={region}>{region}</option>)}<option>全部</option></select></label>
             <label className="setting-field"><span>默认时间范围</span><select value={values.default_time_range} onChange={(event) => change("default_time_range", event.target.value)}><option>今天</option><option>近3天</option><option>本周</option><option>本月</option><option>未来3个月</option></select></label>
             <label className="setting-field"><span>手动扫描线路</span><select value={values.default_manual_data_lines} onChange={(event) => change("default_manual_data_lines", event.target.value)}>{dataLineOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
           </div>
@@ -329,7 +368,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
           <label className="toggle-field"><span><b>运营情报每日自动扫描</b><small>优先复用产品情报最近3小时的同一批新闻证据</small></span><input type="checkbox" checked={values.operations_schedule_enabled} onChange={(event) => change("operations_schedule_enabled", event.target.checked)} /></label>
           <div className="setting-row three">
             <label className="setting-field"><span>每天运行时间</span><input type="time" value={operationsScheduleTime} onInput={(event) => { const [hour, minute] = event.currentTarget.value.split(":").map(Number); change("operations_schedule_hour", hour); change("operations_schedule_minute", minute); }} /></label>
-            <label className="setting-field"><span>默认区域</span><select value={values.default_operations_target_region} onChange={(event) => change("default_operations_target_region", event.target.value)}><option>全部</option><option>东南亚</option><option>拉美</option></select></label>
+            <label className="setting-field"><span>默认区域</span><select value={values.default_operations_target_region} onChange={(event) => change("default_operations_target_region", event.target.value)}>{targetCountryGroups.map(([region]) => <option key={region}>{region}</option>)}<option>全部</option></select></label>
             <label className="setting-field"><span>新闻时间范围</span><select value={values.default_operations_time_range} onChange={(event) => change("default_operations_time_range", event.target.value)}><option>今天</option><option>近3天</option><option>本周</option><option>本月</option></select></label>
           </div>
         </article>
@@ -348,14 +387,9 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
           </div>
           <div className="setting-row two secrets-row"><SecretInput field="gemini_api_key" label="Gemini API Key 1（主）" /><SecretInput field="gemini_api_key_2" label="Gemini API Key 2（轮换）" /></div>
           <p className="settings-footnote">配置两个不同项目的 Key 后，每次 Gemini 分析会交替使用；某个 Key 遇到 429 会临时冷却并切换另一个。同一 Google 项目的两个 Key 共享配额，轮换不会增加额度。</p>
-          <div className="setting-row two">
-            <label className="setting-field"><span>搜索引擎</span><select value={values.search_engine || "google"} onChange={(event) => change("search_engine", event.target.value as "tavily" | "google")}><option value="tavily">Tavily（1000次/月）</option><option value="google">Google CSE（100次/天 ≈ 3000/月，推荐）</option></select></label>
-            {(values.search_engine || "google") === "google" && <><label className="setting-field"><span>引擎A CX ID</span><input value={values.google_search_cx_a} onChange={(event) => change("google_search_cx_a", event.target.value)} placeholder="第一个引擎的搜索引擎ID" /></label><label className="setting-field"><span>引擎B CX ID</span><input value={values.google_search_cx_b} onChange={(event) => change("google_search_cx_b", event.target.value)} placeholder="第二个引擎的搜索引擎ID" /></label></>}
-          </div>
-          <div className="setting-row two secrets-row">
-            {(values.search_engine || "google") === "tavily" ? <SecretInput field="tavily_api_key" label="Tavily API Key" /> : <SecretInput field="google_search_api_key" label="Google Search API Key" />}
-            <SecretInput field="https_proxy" label="HTTPS 代理" />
-          </div>
+          <p className="settings-footnote">当前唯一搜索引擎：Tavily Search API。</p>
+          <SecretInput field="tavily_api_key" label="Tavily API Key" />
+          <SecretInput field="https_proxy" label="HTTPS 代理" />
         </article>
 
         <article className="settings-card">
@@ -375,6 +409,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
           <SecretInput field="google_private_key" label="Google 服务账号私钥" multiline />
           <div className="setting-row two secrets-row"><SecretInput field="dingtalk_token_1" label="钉钉机器人 1 Token" /><SecretInput field="dingtalk_secret_1" label="钉钉机器人 1 Secret" /></div>
           <div className="setting-row two secrets-row"><SecretInput field="dingtalk_token_2" label="钉钉机器人 2 Token" /><SecretInput field="dingtalk_secret_2" label="钉钉机器人 2 Secret" /></div>
+          <p className="settings-footnote">机器人 2 可留空；仅向已配置 Token 的机器人发送。启用了加签的机器人还需配置对应 Secret。</p>
         </article>
 
         <article className="settings-card">
@@ -400,22 +435,22 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
           </div>
           <div className="source-list-preview">
             <div className="source-preview-row">
-              <h4>当前启用的8国媒体 <span>Tavily Search API</span></h4>
-              <p className="source-block-note">每个网站单独调用 Tavily 的新闻搜索，再按国家合并给 Gemini。优点是不用维护网页爬虫；风险是搜索索引可能延迟、漏报或返回旧页面，系统会用域名、发布日期、正文和重复校验拦截。</p>
+              <h4>目标国家媒体配置 <span>Tavily Search API · 启用状态不影响配置显示</span></h4>
+              <p className="source-block-note">所有目标国家的媒体配置始终显示。未勾选的国家标记为“已暂停”，只是不参与采集和分析；重新勾选保存后自动恢复。</p>
               {Object.entries(sourceCatalog.countries)
-                .filter(([countryName]) => enabledCountries.has(countryName))
+                .filter(([countryName]) => targetCountrySet.has(countryName))
                 .map(([countryName, countryInfo]: [string, any]) => (
                 <div key={countryName} className="source-country-group">
-                  <h5>{countryName} · {countryInfo.region}</h5>
+                  <h5><span>{countryName} · {countryInfo.region}</span><span className={`source-scope-status ${enabledCountries.has(countryName) ? "source-scope-active" : "source-scope-paused"}`}>{countryScopeStatus(countryName, enabledCountries)}</span></h5>
                   <div className="source-items-grid">
                     {countryInfo.media.map(([domain]: string[]) => (
                       <SourceItem
                         key={domain}
                         name={domain}
                         publisher={`${countryName}当地${officialMediaDomains.has(domain) ? "公共/官方媒体" : "主要媒体"}`}
-                        method="Tavily Search API · news模式 · 单站请求"
+                        method={`${searchLabel} · 单站请求`}
                         authority={officialMediaDomains.has(domain) ? "高：发布者具有公共或官方媒体属性" : "中高：当地主要媒体，重要事实仍需交叉验证"}
-                        risk="中：Tavily索引可能延迟或漏报；无有效URL、跨域、旧闻和重复结果会被拦截"
+                        risk="中：搜索索引可能延迟或漏报；无有效URL、跨域、旧闻和重复结果会被拦截"
                         health={sourceStatus("tavily", countryName, domain)}
                       />
                     ))}
@@ -423,58 +458,82 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
                 </div>
               ))}
             </div>
-            {disabledCountries.length > 0 && (
-              <div className="source-preview-row source-disabled-row">
-                <h4>暂时停用的目标国家 <span>不采集、不分析</span></h4>
-                <p className="source-block-note">在上方“启用国家”重新勾选并保存后，下一次扫描自动恢复；现有历史记录不会删除。</p>
-                <div className="source-preview-links">{disabledCountries.map((country) => <span key={country}>{country}</span>)}</div>
-              </div>
-            )}
             <div className="source-preview-row source-reserve-row">
-              <h4>备用国家媒体配置 <span>当前不运行</span></h4>
-              <p className="source-block-note">这些是原 n8n 保留下来的扩展配置，不属于当前东南亚6国和拉美2国扫描范围，也不会消耗 Tavily 或 Gemini 额度。</p>
-              <div className="source-preview-links">
-                {Object.entries(sourceCatalog.countries).filter(([country]) => !targetCountrySet.has(country)).map(([country, info]: [string, any]) => <span key={country}>{country} · {info.media.length}站</span>)}
-              </div>
+              <h4>备用国家媒体配置 <span>保留配置，不参与当前扫描</span></h4>
+              <p className="source-block-note">扩展国家的媒体域名也完整保留在这里；当前未接入扫描范围，不会消耗搜索或 Gemini 额度。</p>
+              {Object.entries(sourceCatalog.countries).filter(([country]) => !targetCountrySet.has(country)).map(([country, info]: [string, any]) => (
+                <div key={country} className="source-country-group">
+                  <h5><span>{country} · {info.region}</span><span className="source-scope-status source-scope-reserve">备用配置</span></h5>
+                  <div className="source-items-grid">
+                    {info.media.map(([domain]: string[]) => <SourceItem key={domain} name={domain}
+                      publisher={`${country}当地主要媒体`}
+                      method="预留媒体域名（当前不发起搜索）"
+                      authority="待接入后按媒体属性判断"
+                      risk="当前未参与采集和分析"
+                      scopeStatus="备用配置" />)}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="source-preview-row">
-              <h4>体育赛事线索 <span>Tavily Search API</span></h4>
-              <p className="source-block-note">从赛事官网、体育媒体和聚合站搜索赛程线索。当前结果进入“运行记录”的体育专题，不直接等同于已经生成选品机会。</p>
-              <div className="source-items-grid">
-                {sourceCatalog.sports_searches.map(([domain]: string[]) => (
+              <h4>体育赛事与产品机会 <span>{searchLabel} · 按国家分析</span></h4>
+              <p className="source-block-note">全球赛事每次扫描共享采集一次；本国赛事按勾选国家分别搜索。体育材料与该国媒体一起进入产品情报分析。全球赛事需要本国关联证据；没有明确活动日期或有效来源的内容不会生成机会。</p>
+              <p className="source-block-note">启用媒体线路并扫描全部启用国家时：全球共享 {sourceCatalog.sports_searches.length} 次体育搜索，加本国体育 {Object.entries(sourceCatalog.country_sports_searches).filter(([country]) => enabledCountries.has(country)).reduce((count, [, searches]) => count + searches.length, 0)} 次。仅扫描某个地区或国家时，按实际范围减少本国请求。赛事和活动按发生日期筛选。</p>
+              <h5>全球赛事 · 采集一次，逐国核实关联</h5>
+              <div className="source-items-grid sports-global-grid">
+                {sourceCatalog.sports_searches.map(([domain, query]: string[]) => (
                   <SourceItem key={domain} name={domain}
                     publisher={officialSportsDomains.has(domain) ? "赛事组织方官网" : domain === "flashscore.com" ? "比分/赛程聚合平台" : "体育媒体"}
-                    method="Tavily Search API · 单站赛事搜索"
+                    method={`${searchLabel} · 单站赛事搜索`}
                     authority={officialSportsDomains.has(domain) ? "高：官方赛历或赛事组织方" : domain === "flashscore.com" ? "中：聚合数据需以赛事官网确认" : "中高：专业体育媒体"}
                     risk="中：赛程更改或索引延迟；系统校验域名、URL和重复结果"
+                    query={searchPreview(query, values?.default_time_range ?? "本周")}
                     health={sourceStatus("sports", "", domain)} />
                 ))}
               </div>
+              {Object.entries(sourceCatalog.country_sports_searches).map(([country, searches]) => (
+                <div key={country} className="source-country-group">
+                  <h5><span>{country} · 本国体育查询</span><span className={`source-scope-status ${enabledCountries.has(country) ? "source-scope-active" : "source-scope-paused"}`}>{countryScopeStatus(country, enabledCountries)}</span></h5>
+                  <div className="source-items-grid">
+                    {searches.map(([domain, query]) => <SourceItem key={domain} name={`${country} · ${domain}`}
+                      publisher={officialSportsDomains.has(domain) ? "赛事组织方官网" : domain === "flashscore.com" ? "比分/赛程聚合平台" : "体育媒体"}
+                      method={`${searchLabel} · 单站单国家搜索`}
+                      authority={officialSportsDomains.has(domain) ? "高：赛事组织方发布" : "中：以赛事原文和明确日期核实"}
+                      risk="中：搜索可能缺少赛程日期；只向本国分析提供本国查询结果"
+                      query={searchPreview(query, values?.default_time_range ?? "本周")}
+                      scopeStatus={countryScopeStatus(country, enabledCountries)}
+                      health={healthMap.get(`sports|${country}|${domain}`)} />)}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="source-preview-row">
               <h4>新闻订阅源 <span>RSS / XML接口</span></h4>
               <p className="source-block-note">RSS是网站主动提供的结构化订阅，通常比搜索更快、更少串站。直连官方RSS较稳定；RSSHub多一层代理，可能停更或缓存旧内容。</p>
               <div className="source-items-grid">
-                {sourceCatalog.rss_feeds.filter((feed: any) => !feed.country || enabledCountries.has(feed.country)).map((feed: any) => (
+                {sourceCatalog.rss_feeds.map((feed: any) => (
                   <SourceItem key={feed.name} name={feed.name}
                     publisher={feed.country ? `${feed.country} · ${feed.official ? "官方/国家通讯社" : "新闻媒体"}` : "中文新闻媒体"}
                     method={feed.url.includes("rsshub") ? "RSSHub第三方代理 → RSS接口" : "发布者直连 RSS/XML接口"}
                     authority={feed.official ? "高：发布者官方订阅" : "中：媒体报道，不等于政府原始公告"}
                     risk={feed.url.includes("rsshub") ? "中高：代理可能卡顿、停更或保留旧缓存；超过14天会被拦截" : "低至中：通常延迟较小；可能临时断连或字段格式变化"}
+                    scopeStatus={feed.country ? countryScopeStatus(feed.country, enabledCountries) : undefined}
                     health={sourceStatus("rss", feed.country ?? "", feed.name)} />
                 ))}
               </div>
             </div>
             <div className="source-preview-row">
               <h4>官方节庆与活动日历 <span>官方页面 + Tavily</span></h4>
-              <p className="source-block-note">内容来自旅游局、文化部门等官方页面，但获取仍通过 Tavily 高级搜索，所以“内容权威”和“获取可能延迟”可以同时成立。</p>
+              <p className="source-block-note">内容来自旅游局、文化部门等官方页面，但获取仍通过 Tavily，所以“内容权威”和“获取可能延迟”可以同时成立。</p>
               <div className="source-items-grid">
-                {sourceCatalog.official_event_sources.filter((source: any) => enabledCountries.has(source.country)).map((source: any) => (
+                {sourceCatalog.official_event_sources.map((source: any) => (
                   <SourceItem key={`${source.country}-${source.domain}`} name={`${source.country} · ${source.name}`}
-                    publisher="政府旅游、文化或公共推广机构"
-                    method="Tavily Search API · advanced模式 · 官方域名限定"
+                    publisher={source.publisher ?? "政府旅游、文化或公共推广机构"}
+                    method={`${searchLabel} · 官方域名限定`}
                     authority="高：活动名称、地点和公布日期以官方页面为准"
                     risk="中：动态日历可能未被及时索引；无官方域名和有效页面路径的结果会被拦截"
+                    scopeStatus={countryScopeStatus(source.country, enabledCountries)}
+                    url={source.url} urlLabel="官方活动入口" query={searchPreview(source.query, values?.default_time_range ?? "本周")}
                     health={sourceStatus("official-event-calendar", source.country, source.name)} />
                 ))}
               </div>
@@ -498,60 +557,75 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
                   authority="中高：结构化且方便，但不是各国政府原始公告"
                   risk="低至中：接口稳定；国家覆盖不完整，泰国和马来西亚当前返回空"
                   health={latestSourceStatus("nager", "Nager.Date")} />
-                {Object.entries(sourceCatalog.holiday_fallbacks).filter(([country]) => enabledCountries.has(country)).map(([country, fallback]: [string, any]) => (
+                {Object.entries(sourceCatalog.holiday_fallbacks).map(([country, fallback]: [string, any]) => (
                   <SourceItem key={country} name={`${country} · ${fallback.source_name}`}
                     publisher="对应国家政府、央行或总理署官方公报"
                     method="官方公报人工核对 → 本地年度结构化表"
                     authority="高：日期依据官方文件"
                     risk="运行时不会卡；维护风险是跨年或临时新增假日，需要更新年度表"
+                    scopeStatus={countryScopeStatus(country, enabledCountries)}
                     health={sourceStatus("official-holiday-fallback", country, fallback.source_name)} />
                 ))}
               </div>
             </div>
             <div className="source-preview-row">
               <h4>运营情报官方经营来源 <span>官方网页 + Tavily</span></h4>
-              <p className="source-block-note">每个国家增加一个海关、税务或国家贸易入口，专门补足媒体新闻中的关税、进口准入和申报政策。它们不进入产品机会分析。</p>
+              <p className="source-block-note">按国家监测海关、税务及相关监管机构公告，补足媒体新闻中的关税、进口准入、消费者保护和商品安全政策。它们不进入产品机会分析。</p>
               <div className="source-items-grid">
-                {sourceCatalog.operations_official_sources.filter((source: any) => enabledCountries.has(source.country)).map((source: any) => (
+                {sourceCatalog.operations_official_sources.map((source: any) => (
                   <SourceItem key={`${source.country}-${source.domain}`} name={`${source.country} · ${source.name}`}
-                    publisher="国家级海关、税务或贸易主管机构"
-                    method="Tavily Search API · 官方域名限定 · 单站请求"
+                    publisher="国家级监管、海关、税务或贸易主管机构"
+                    url={source.url}
+                    method={`${searchLabel} · 官方域名限定 · 单站请求`}
                     authority="高：政策内容以官方公告为准"
                     risk="低至中：官方页面可能更新慢或未标发布日期；系统仍校验域名、正文和URL"
+                    scopeStatus={countryScopeStatus(source.country, enabledCountries)}
                     health={sourceStatus("operations-official", source.country, source.name)} />
                 ))}
               </div>
             </div>
             <div className="source-preview-row">
               <h4>平台官方规则与费用 <span>平台官方页面 + Tavily</span></h4>
-              <p className="source-block-note">按国家、按平台分别搜索 Shopee、Lazada、TikTok Shop 和 Mercado Libre 的卖家公告。官方费率、支付、物流、禁限售和处罚规则取得后直接标记“已确认”。</p>
+              <p className="source-block-note">按国家和配置的平台搜索卖家公告，包括 Amazon、eBay、Walmart、Shopee、Lazada、TikTok Shop 和 Mercado Libre。具体规则以平台原文为准。</p>
               <div className="source-items-grid">
-                {sourceCatalog.platform_official_sources.filter((source: any) => enabledCountries.has(source.country)).map((source: any) => (
+                {sourceCatalog.platform_official_sources.map((source: any) => (
                   <SourceItem key={`${source.country}-${source.platform}-${source.domain}`} name={`${source.country} · ${source.platform}`}
                     publisher={source.name}
-                    method="Tavily Search API · 平台官方域名限定 · 单站请求"
+                    url={source.url}
+                    method={`${searchLabel} · 平台官方域名限定 · 单站请求`}
                     authority="高：平台自己发布的卖家规则或帮助中心公告"
                     risk="低至中：部分卖家中心为动态页面或需要登录，可能未被搜索及时索引；系统会保留零结果和失败原因"
+                    scopeStatus={countryScopeStatus(source.country, enabledCountries)}
                     health={sourceStatus("platform-official", source.country, source.name)} />
                 ))}
               </div>
             </div>
             <div className="source-preview-row">
               <h4>跨境电商行业媒体 <span>发现线索 + 交叉验证</span></h4>
-              <p className="source-block-note">每个网站单独调用，按东南亚、拉美区域查询后再识别国家。一级线索优先；聚合转载属于二级线索。单一媒体只能标记“待核实”，不会进入钉钉正式播报。</p>
+              <p className="source-block-note">每个网站按已启用区域单独查询；北美使用美国市场和平台词，东南亚、拉美保留各自查询。一级线索优先；聚合转载属于二级线索。单一媒体只能标记“待核实”，不会进入钉钉正式播报。</p>
               <div className="source-items-grid">
                 {sourceCatalog.platform_industry_media_sources.flatMap((source: any) => {
                   const scopes = source.countries?.length
-                    ? source.countries.some((country: string) => enabledCountries.has(country)) ? [source.countries.join("、")] : []
-                    : source.regions.filter((region: string) => (sourceCatalog.regions as Record<string, string[]>)[region]?.some((country) => enabledCountries.has(country)));
-                  return scopes.map((scope: string) => (
+                    ? [source.countries.join("、")]
+                    : source.regions;
+                  return scopes.map((scope: string) => {
+                    const scopedCountries: string[] = source.countries?.length
+                      ? source.countries
+                      : (sourceCatalog.regions as Record<string, string[]>)[scope] ?? [];
+                    const activeCountries = scopedCountries.filter((country) => enabledCountries.has(country));
+                    const scopeTerms = (activeCountries.length ? activeCountries : scopedCountries).join(" ");
+                    const queryTemplate = source.queries_by_region?.[scope] ?? source.query;
+                    return (
                     <SourceItem key={`${source.domain}-${scope}`} name={`${source.name} · ${scope}`}
                       publisher={source.tier === "A" ? "跨境行业专业/垂直媒体" : "跨境行业聚合/转载媒体"}
-                      method="Tavily Search API · general模式 · 单站单区域请求"
+                      method={`${searchLabel} · ${source.countries?.length ? "单站指定国家" : "单站单区域"}请求`}
                       authority={source.tier === "A" ? "中高：一级发现线索，仍优先寻找平台官方原文" : "中：二级发现线索，不能单独作为确定结论"}
                       risk="中：可能转载同一原稿、标题改写或缺少官方链接；系统按国家、平台、政策类型、生效日和费率变化合并"
+                      scopeStatus={countriesScopeStatus(scopedCountries, enabledCountries)}
+                      query={searchPreview(queryTemplate.replaceAll("${scope_terms}", scopeTerms), values?.default_operations_time_range ?? "近3天")}
                       health={latestSourceStatus("platform-media", `${source.name}·${scope}`)} />
-                  ));
+                    );
+                  });
                 })}
               </div>
             </div>
@@ -560,23 +634,13 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
               <div className="source-items-grid">
                 {sourceCatalog.optional_sources.map((source) => (
                   <SourceItem key={source.name} name={source.name}
-                    publisher={source.name.includes("Mercado") ? "Mercado Libre平台内部趋势" : "Google搜索趋势"}
+                    publisher="平台内部趋势数据"
                     method="官方 OAuth/API（尚未获得权限）"
                     authority="高：属于真实平台行为数据，不是新闻推测"
                     risk={`当前不发请求、不产生数据。${source.status}`} />
                 ))}
               </div>
             </div>
-            {sourceCatalog.google_news_queries.length > 0 && (
-              <div className="source-preview-row">
-                <h4>Google 新闻专项</h4>
-                <div className="source-preview-links">
-                  {sourceCatalog.google_news_queries.map((q: any) => (
-                    <span key={q.name}>{q.name}</span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </article>
       </div>

@@ -1,13 +1,11 @@
 import type { RadarConfig } from "./types.ts";
-import { TARGET_COUNTRIES } from "./lib.ts";
+import { TARGET_COUNTRIES, TARGET_REGIONS } from "./lib.ts";
+import { calendarUrl, DEFAULT_CALENDAR_URL, validDate } from "./calendar_feed.ts";
 
 export const SECRET_CONFIG_FIELDS = [
   "gemini_api_key",
   "gemini_api_key_2",
   "tavily_api_key",
-  "google_search_api_key",
-  "google_search_cx_a",
-  "google_search_cx_b",
   "google_private_key",
   "dingtalk_token_1",
   "dingtalk_secret_1",
@@ -17,12 +15,11 @@ export const SECRET_CONFIG_FIELDS = [
 ] as const;
 
 export const LIVE_CONFIG_FIELDS = [
+  "calendar_enabled", "calendar_url", "calendar_hour", "calendar_minute", "calendar_start_date", "calendar_offsets",
   "admin_password",
-  "search_engine",
   "gemini_api_key",
   "gemini_api_key_2",
   "tavily_api_key",
-  "google_search_api_key",
   "spreadsheet_id",
   "google_service_account_email",
   "google_private_key",
@@ -59,7 +56,7 @@ export const LIVE_CONFIG_FIELDS = [
 
 type SecretConfigField = (typeof SECRET_CONFIG_FIELDS)[number];
 
-const targetRegions = new Set(["全部", "东南亚", "拉美"]);
+const targetRegions = new Set(["全部", ...TARGET_REGIONS]);
 const timeRanges = new Set(["今天", "近3天", "本周", "本月", "未来3个月"]);
 const dataLines = new Set(["全部", "媒体+网页", "仅网页", "仅媒体", "仅假日", "假日+网页", "假日+媒体"]);
 
@@ -116,6 +113,12 @@ function configured(value: unknown) {
 export function publicSettings(config: RadarConfig, options: { localRequest: boolean }) {
   return {
     values: {
+      calendar_enabled: config.calendar_enabled ?? false,
+      calendar_url: config.calendar_url || DEFAULT_CALENDAR_URL,
+      calendar_hour: config.calendar_hour ?? 9,
+      calendar_minute: config.calendar_minute ?? 0,
+      calendar_start_date: config.calendar_start_date || "",
+      calendar_offsets: config.calendar_offsets ?? [7, 3, 0],
       schedule_enabled: config.schedule_enabled,
       schedule_hour: config.schedule_hour,
       schedule_minute: config.schedule_minute,
@@ -125,9 +128,6 @@ export function publicSettings(config: RadarConfig, options: { localRequest: boo
       enabled_countries: Array.isArray(config.enabled_countries)
         ? config.enabled_countries
         : [...TARGET_COUNTRIES],
-      search_engine: config.search_engine,
-      google_search_cx_a: config.google_search_cx_a,
-      google_search_cx_b: config.google_search_cx_b,
       default_target_region: config.default_target_region,
       default_time_range: config.default_time_range,
       default_manual_data_lines: config.default_manual_data_lines,
@@ -175,6 +175,23 @@ export function applySettingsUpdate(current: RadarConfig, payloadValue: unknown)
     }
   };
 
+  if (has(values, "calendar_enabled")) {
+    if (typeof values.calendar_enabled !== "boolean") throw new Error("备货提醒开关必须是布尔值");
+    setValue("calendar_enabled", values.calendar_enabled);
+  }
+  if (has(values, "calendar_url")) setValue("calendar_url", calendarUrl(stringValue(values.calendar_url, "备货看板链接", { required: true, max: 2000 })));
+  if (has(values, "calendar_hour")) setValue("calendar_hour", integerValue(values.calendar_hour, "备货提醒小时", 0, 23));
+  if (has(values, "calendar_minute")) setValue("calendar_minute", integerValue(values.calendar_minute, "备货提醒分钟", 0, 59));
+  if (has(values, "calendar_start_date")) {
+    const date = stringValue(values.calendar_start_date, "提醒开始日期");
+    if (date && !validDate(date)) throw new Error("提醒开始日期无效");
+    setValue("calendar_start_date", date);
+  }
+  if (has(values, "calendar_offsets")) {
+    if (!Array.isArray(values.calendar_offsets) || !values.calendar_offsets.length || values.calendar_offsets.length > 10) throw new Error("请填写1至10个提前提醒天数");
+    const offsets = [...new Set(values.calendar_offsets.map((value) => integerValue(value, "提前提醒天数", 0, 365)))].sort((a, b) => b - a);
+    setValue("calendar_offsets", offsets);
+  }
   if (has(values, "schedule_enabled")) {
     if (typeof values.schedule_enabled !== "boolean") throw new Error("定时开关必须是布尔值");
     setValue("schedule_enabled", values.schedule_enabled);
@@ -188,9 +205,6 @@ export function applySettingsUpdate(current: RadarConfig, payloadValue: unknown)
   if (has(values, "operations_schedule_hour")) setValue("operations_schedule_hour", integerValue(values.operations_schedule_hour, "运营情报定时小时", 0, 23));
   if (has(values, "operations_schedule_minute")) setValue("operations_schedule_minute", integerValue(values.operations_schedule_minute, "运营情报定时分钟", 0, 59));
   if (has(values, "enabled_countries")) setValue("enabled_countries", enabledCountriesValue(values.enabled_countries));
-  if (has(values, "search_engine")) setValue("search_engine", enumValue(values.search_engine, "搜索引擎", new Set(["tavily", "google"])) as "tavily" | "google");
-  if (has(values, "google_search_cx_a")) setValue("google_search_cx_a", stringValue(values.google_search_cx_a, "引擎A CX ID", { max: 100 }));
-  if (has(values, "google_search_cx_b")) setValue("google_search_cx_b", stringValue(values.google_search_cx_b, "引擎B CX ID", { max: 100 }));
   if (has(values, "default_target_region")) setValue("default_target_region", enumValue(values.default_target_region, "默认区域", targetRegions));
   if (has(values, "default_time_range")) setValue("default_time_range", enumValue(values.default_time_range, "默认时间范围", timeRanges));
   if (has(values, "default_manual_data_lines")) setValue("default_manual_data_lines", enumValue(values.default_manual_data_lines, "手动扫描线路", dataLines));

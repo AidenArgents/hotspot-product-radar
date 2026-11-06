@@ -19,13 +19,16 @@ test("解析纯 JSON 和 markdown JSON", () => {
   assert.equal(parseGeminiEvents(`\`\`\`json\n${json}\n\`\`\``)[0]?.event_name, "热点");
 });
 
-test("Gemini 截断时保留最后一个完整事件", () => {
+test("Gemini 截断时明确报错，避免漏数据却记成成功", () => {
   const truncated = '{"events":[{"event_id":"a","event_name":"A"},{"event_id":"b"';
-  assert.deepEqual(parseGeminiEvents(truncated).map((event) => event.event_id), ["a"]);
+  assert.throws(() => parseGeminiEvents(truncated), /JSON 不完整或格式错误/);
 });
 
-test("无有效 JSON 时安全返回空数组", () => {
-  assert.deepEqual(parseGeminiEvents("no json"), []);
+test("只有有效的空数组才表示无结果", () => {
+  assert.deepEqual(parseGeminiEvents('{"events":[]}'), []);
+  for (const text of ["no json", "", "{}", '{"events":[null]}']) {
+    assert.throws(() => parseGeminiEvents(text));
+  }
 });
 
 test("兼容 Gemini 返回的中文产品字段", () => {

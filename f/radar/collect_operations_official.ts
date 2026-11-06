@@ -4,7 +4,7 @@ import { mapLimit } from "./lib.ts";
 import { mediaPublicationWindow, searchWeb, validateSearchResults } from "./web_search.ts";
 import type { EvidenceItem, RadarConfig, SourceExecutionRecord, TimeRange } from "./types.ts";
 
-type OfficialSource = { country: string; name: string; domain: string; query: string };
+type OfficialSource = { country: string; name: string; domain: string; url?: string; query: string };
 
 export async function collectOperationsOfficial(
   config: RadarConfig,
