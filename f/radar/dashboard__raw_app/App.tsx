@@ -104,9 +104,18 @@ export default function App() {
   });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [calendarUrl, setCalendarUrl] = useState("https://aidenargents.github.io/hotspot-product-radar/%E7%BE%8E%E5%9B%BD%E7%94%B5%E5%95%86%E5%A4%87%E8%B4%A7%E6%97%A5%E5%8E%86.html");
   const settingsRef = useRef<SettingsPanelHandle>(null);
   const operationsRef = useRef<OperationsPanelHandle>(null);
   const refreshNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    backend.get_settings({})
+      .then((res: any) => {
+        if (res?.values?.calendar_url) setCalendarUrl(res.values.calendar_url);
+      })
+      .catch(() => {});
+  }, []);
 
   const buildQueryParams = (offset: number) => {
     const queryParams: any = { ...filters, limit: 20, offset };
@@ -288,7 +297,7 @@ export default function App() {
         <div className="module-rail-mark">R</div>
         <button className={module === "product" ? "active" : ""} onClick={() => setModule("product")}><span>◇</span><b>产品情报</b></button>
         <button className={module === "operations" ? "active" : ""} onClick={() => setModule("operations")}><span>▦</span><b>运营情报</b></button>
-        <a className="calendar-rail-link" href="https://aidenargents.github.io/Tools/%E7%BE%8E%E5%9B%BD%E7%94%B5%E5%95%86%E5%A4%87%E8%B4%A7%E6%97%A5%E5%8E%86.html" target="_blank" rel="noreferrer"><span>▣</span><b>备货看板 ↗</b></a>
+        <a className="calendar-rail-link" href={calendarUrl} target="_blank" rel="noreferrer"><span>▣</span><b>备货看板 ↗</b></a>
       </aside>
       <header className="topbar">
         <div className="brand">
@@ -321,7 +330,7 @@ export default function App() {
       <main>
         {module === "operations" ? (
           operationsTab === "settings"
-            ? <SettingsPanel ref={settingsRef} />
+            ? <SettingsPanel ref={settingsRef} onCalendarUrlChange={setCalendarUrl} />
             : <OperationsPanel ref={operationsRef} view={operationsTab} />
         ) : <>
         <section className="hero">
@@ -443,7 +452,7 @@ export default function App() {
             </div>
           </section>
         ) : (
-          <SettingsPanel ref={settingsRef} />
+          <SettingsPanel ref={settingsRef} onCalendarUrlChange={setCalendarUrl} />
         )}
         </>}
       </main>

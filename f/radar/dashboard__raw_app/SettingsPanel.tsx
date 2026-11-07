@@ -173,7 +173,11 @@ function countriesScopeStatus(countries: string[], enabledCountries: Set<string>
   return states.values().next().value ?? "备用配置";
 }
 
-const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, ref) {
+export type SettingsPanelProps = {
+  onCalendarUrlChange?: (url: string) => void;
+};
+
+const SettingsPanel = forwardRef<SettingsPanelHandle, SettingsPanelProps>(function SettingsPanel(props, ref) {
   const [snapshot, setSnapshot] = useState<SettingsResponse | null>(null);
   const [values, setValues] = useState<SettingsValues | null>(null);
   const [secretValues, setSecretValues] = useState<Partial<Record<SecretField, string>>>({});
@@ -196,6 +200,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
       ]);
       setSnapshot(result);
       setValues(result.values);
+      if (result.values.calendar_url) props.onCalendarUrlChange?.(result.values.calendar_url);
       setSourceHealth(health);
       return true;
     } catch (cause) {
@@ -276,6 +281,7 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
       }) as SettingsResponse;
       setSnapshot(result);
       setValues(result.values);
+      if (result.values.calendar_url) props.onCalendarUrlChange?.(result.values.calendar_url);
       setSecretValues({});
       setClearSecrets([]);
       if (newAdminPassword) setAdminPassword(newAdminPassword);
@@ -327,7 +333,10 @@ const SettingsPanel = forwardRef<SettingsPanelHandle>(function SettingsPanel(_, 
       )}
 
       <div className="settings-grid">
-        <CalendarSettingsCard values={values} change={(patch) => setValues((current) => current ? { ...current, ...patch } : current)} password={adminPassword} setPassword={setAdminPassword} needsPassword={snapshot.admin_password_configured} />
+        <CalendarSettingsCard values={values} change={(patch) => {
+          setValues((current) => current ? { ...current, ...patch } : current);
+          if (patch.calendar_url) props.onCalendarUrlChange?.(patch.calendar_url);
+        }} password={adminPassword} setPassword={setAdminPassword} needsPassword={snapshot.admin_password_configured} />
         <article className="settings-card">
           <div className="settings-card-title"><span>01</span><div><h3>自动运行</h3><p>产品情报和运营情报分别定时，互不改变对方的分析逻辑。</p></div></div>
           <div className="country-scope-setting">

@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { fetchText } from "./http.ts";
 import type { RadarConfig } from "./types.ts";
 
-export const DEFAULT_CALENDAR_URL = "https://aidenargents.github.io/Tools/%E7%BE%8E%E5%9B%BD%E7%94%B5%E5%95%86%E5%A4%87%E8%B4%A7%E6%97%A5%E5%8E%86.html";
+export const DEFAULT_CALENDAR_URL = "https://aidenargents.github.io/hotspot-product-radar/%E7%BE%8E%E5%9B%BD%E7%94%B5%E5%95%86%E5%A4%87%E8%B4%A7%E6%97%A5%E5%8E%86.html";
 export type CalendarNode = {
   id: string; event_id: string; event_name: string; event_date: string; estimated: boolean;
   route_id: string; route_name: string; stage: "start" | "finish" | "depart"; stage_name: string; due_date: string;
